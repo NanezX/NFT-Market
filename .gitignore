@@ -1,0 +1,6 @@
+node_modules
+.openzeppelin
+.vscode
+#Hardhat files
+cache
+artifacts
