@@ -25,18 +25,18 @@ describe("Market NFT", ()=>{
     it("Must be change the fee and recipient correctly", async()=>{
         // Deploying
         const FactoryContract = await ethers.getContractFactory("Market");
-        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
+        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 150]);
 
         // Changing the fee
         let tx = await market.connect(owner).setFee(200);
         tx = await tx.wait();
         const _fee = await market.getFee();
-        expect(200).to.equal(_fee);
-
         // Transfering the ownership
         tx = await market.connect(owner).setRecipient(account1.address);
         tx = await tx.wait();
         const _newRecipient = await market.getRecipient();
+
+        expect(200).to.equal(_fee);
         expect(account1.address).to.equal(_newRecipient);
     });
 });
