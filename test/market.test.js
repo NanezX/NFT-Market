@@ -1,0 +1,42 @@
+const { expect } = require("chai");
+const { ethers, upgrades } = require("hardhat");
+const fetch = require("node-fetch");
+const hre = require("hardhat");
+
+let owner, recipient, account1;
+
+describe("Market NFT", ()=>{
+    beforeEach(async ()=>{
+        // Getting hardhat accounts
+        [owner, recipient, account1] = await ethers.getSigners();
+    });
+    it("Must be return the correct owner, fee and recipient", async ()=>{
+        // Deploying
+        const FactoryContract = await ethers.getContractFactory("Market");
+        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
+
+        const _owner = await market.owner();
+        const _fee = await market.getFee();
+        const _recipient = await market.getRecipient();
+        expect(100).to.equal(_fee);
+        expect(recipient.address).to.equal(_recipient);
+        expect(owner.address).to.equal(_owner);
+    });
+    it("Must be change the fee and recipient correctly", async()=>{
+        // Deploying
+        const FactoryContract = await ethers.getContractFactory("Market");
+        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
+
+        // Changing the fee
+        let tx = await market.connect(owner).setFee(200);
+        tx = await tx.wait();
+        const _fee = await market.getFee();
+        expect(200).to.equal(_fee);
+
+        // Transfering the ownership
+        tx = await market.connect(owner).setRecipient(account1.address);
+        tx = await tx.wait();
+        const _newRecipient = await market.getRecipient();
+        expect(account1.address).to.equal(_newRecipient);
+    });
+});
