@@ -12,13 +12,13 @@ import "hardhat/console.sol";
 contract Market is OwnableUpgradeable{
     uint fee;
     address payable recipient;
-    enum STATE{ ACTIVE, CANCELLED, SELLED, PENDING}
+    enum STATE{ CANCELLED, ACTIVE, SELLED, PENDING}
     struct offer{
-        uint amount;
-        uint deadline;
-        uint price;
-        address owner;
+        uint88 amount;
+        uint64 deadline;
+        uint88 price;
         STATE state;
+        address creator;
     }
     mapping(address => mapping(uint => offer)) offers;
 
@@ -40,10 +40,10 @@ contract Market is OwnableUpgradeable{
     /// @param _amount The amount of token that is offered.
     /// @param _deadline How long the offer will last
     /// @param _price The price in USD that is necesary to buy the amount of tokens
-    function createOffer(address _tokenAddress, uint _tokenId, uint _amount, uint _deadline, uint _price) external{
+    function createOffer(address _tokenAddress, uint _tokenId, uint64 _amount, uint64 _deadline, uint64 _price) external{
         IERC1155Upgradeable token = IERC1155Upgradeable(_tokenAddress);
         require(token.balanceOf(msg.sender, _tokenId)>= _amount, "Don't have enough tokens");
-        offers[_tokenAddress][_tokenId] = offer(_amount, block.timestamp + _deadline, _price, msg.sender, STATE.PENDING);
+        offers[_tokenAddress][_tokenId] = offer(_amount, uint64(block.timestamp + _deadline), _price, STATE.PENDING, msg.sender);
     }
 
     /// @notice Activate an offer to make it available to buy
@@ -51,7 +51,8 @@ contract Market is OwnableUpgradeable{
     /// @param _tokenAddress The address of the offer token
     /// @param _tokenId The id of the offer token
     function activateOffer(address _tokenAddress, uint _tokenId) external{
-        require(msg.sender==offers[_tokenAddress][_tokenId].owner);
+        require(STATE.PENDING==offers[_tokenAddress][_tokenId].state, "The offer is not pending");
+        require(msg.sender==offers[_tokenAddress][_tokenId].creator, "Not the offer creator");
         IERC1155Upgradeable token = IERC1155Upgradeable(_tokenAddress);
         require(token.isApprovedForAll(msg.sender, address(this)));
         offers[_tokenAddress][_tokenId].state=STATE.ACTIVE;
@@ -65,11 +66,21 @@ contract Market is OwnableUpgradeable{
     /// @return The price in USD that is necesary to buy the amount of tokens
     /// @return The owner of the tokens
     /// @return Actual state of the offer
-    function getOffer(address _tokenAddress, uint _tokenId) view public returns(uint, uint, uint, address, STATE){
-        offer memory _offer = offers[_tokenAddress][_tokenId];
-        return (_offer.amount, _offer.deadline, _offer.price, _offer.owner, _offer.state);
+    function getOffer(address _tokenAddress, uint _tokenId) view public returns(uint88, uint64, uint88, STATE, address){
+        console.log("Gasleft 1: %s", gasleft());
+        // offer memory _offer = offers[_tokenAddress][_tokenId];
+        return (
+            offers[_tokenAddress][_tokenId].amount, 
+            offers[_tokenAddress][_tokenId].deadline,  
+            offers[_tokenAddress][_tokenId].price, 
+            offers[_tokenAddress][_tokenId].state,
+            offers[_tokenAddress][_tokenId].creator
+        );
     }
 
+    function buyTokenOffer(address _tokenAddress, uint _tokenId) external{
+
+    }
 
     function singleTransfer(address contractToken, address from, address to, uint256 id, uint256 amount) external{
         IERC1155Upgradeable token = IERC1155Upgradeable(contractToken);

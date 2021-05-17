@@ -66,11 +66,11 @@ describe("Market NFT", ()=>{
             token1.id,
             10,
             (time.duration.hours(1)).toNumber(),
-            1000
+            ethers.utils.parseEther('1')
         );
         tx = tx.wait();
 
-        // Aproved the market to manage token
+        // Aproved the market to manage the tokens
         tx = await Itoken.connect(ownerToken1).setApprovalForAll(
             await market.address,
             true
@@ -83,7 +83,7 @@ describe("Market NFT", ()=>{
             token1.id
         );
         tx = await tx.wait();
-
+        
         // Transfer the tokens
         tx = await market.connect(account1).singleTransfer(
             token1.address,
