@@ -10,54 +10,14 @@ const token1={
     address: "0xd07dc4262BCDbf85190C01c996b4C06a461d2430",
     id: "65678"
 }
+const ownerToken_1 = "0x5a098be98f6715782ee73dc9c5b9574bd4c130c9";
 
 describe("Market NFT", ()=>{
     beforeEach(async ()=>{
         // Getting hardhat accounts
         [owner, recipient, account1] = await ethers.getSigners();
     });
-    it("Transfer ERC1155 tokens", async ()=>{
 
-        let ownerToken = "0x5a098be98f6715782ee73dc9c5b9574bd4c130c9";
-        await hre.network.provider.request({
-            method: "hardhat_impersonateAccount",
-            params: [ownerToken]
-        });
-        ownerToken = await ethers.provider.getSigner(ownerToken);
-
-        factoryToken = await ethers.getContractFactory("Token1155");
-        const token = await factoryToken.deploy();
-
-        let Itoken = await ethers.getContractAt("IERC1155Upgradeable", token1.address);
-
-        let approved = await Itoken.isApprovedForAll(await ownerToken.getAddress(), token.address);
-        console.log(approved);
-
-        let tx = await Itoken.connect(ownerToken).setApprovalForAll(
-            await token.address,
-            true
-        );
-        tx = await tx.wait();
-
-        approved = await Itoken.isApprovedForAll(await ownerToken.getAddress(), token.address);
-        console.log(approved);
-
-        let balance = await Itoken.balanceOf(await ownerToken.getAddress(), token1.id);
-        console.log(balance.toString());
-
-        tx = await token.singleTransfer(
-            token1.address,
-            await ownerToken.getAddress(),
-            await account1.getAddress(), 
-            token1.id, 
-            10);
-        tx = await tx.wait();
-
-        balance = await Itoken.balanceOf(await ownerToken.getAddress(), token1.id);
-        console.log(balance.gitoString());
-
-    });
-    /*
     it("Must be return the correct owner, fee and recipient", async ()=>{
         // Deploying
         const FactoryContract = await ethers.getContractFactory("Market");
@@ -70,6 +30,7 @@ describe("Market NFT", ()=>{
         expect(recipient.address).to.equal(_recipient);
         expect(owner.address).to.equal(_owner);
     });
+
     it("Must be change the fee and recipient correctly", async()=>{
         // Deploying
         const FactoryContract = await ethers.getContractFactory("Market");
@@ -87,7 +48,56 @@ describe("Market NFT", ()=>{
         expect(200).to.equal(_fee);
         expect(account1.address).to.equal(_newRecipient);
     });
-    */
+    
+    it("Transfer ERC1155 tokens", async ()=>{
+        await hre.network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [ownerToken_1]
+        });
+        const ownerToken1 = await ethers.provider.getSigner(ownerToken_1);
+        let Itoken = await ethers.getContractAt("IERC1155Upgradeable", token1.address);
+
+        const FactoryContract = await ethers.getContractFactory("Market");
+        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
+
+        // Create offer into the market
+        let tx = await market.connect(ownerToken1).createOffer(
+            token1.address,
+            token1.id,
+            10,
+            (time.duration.hours(1)).toNumber(),
+            1000
+        );
+        tx = tx.wait();
+
+        // Aproved the market to manage token
+        tx = await Itoken.connect(ownerToken1).setApprovalForAll(
+            await market.address,
+            true
+        );
+        tx = await tx.wait();
+
+        // Activated the offer in the market
+        tx = await market.connect(ownerToken1).activateOffer(
+            token1.address,
+            token1.id
+        );
+        tx = await tx.wait();
+
+        // Transfer the tokens
+        tx = await market.connect(account1).singleTransfer(
+            token1.address,
+            ownerToken1.getAddress(),
+            account1.getAddress(),
+            token1.id, 
+            10
+        );
+        tx = await tx.wait();
+        expect(10).to.equal(await Itoken.balanceOf(await account1.getAddress(), token1.id));
+        expect(20).to.equal(await Itoken.balanceOf(await ownerToken1.getAddress(), token1.id));
+    });
+
+    
 });
 
 /*      TIME MANIPULATION Examples
