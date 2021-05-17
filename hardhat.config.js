@@ -2,6 +2,7 @@ require('dotenv').config();
 require("@nomiclabs/hardhat-waffle");
 require('@nomiclabs/hardhat-ethers');
 require('@openzeppelin/hardhat-upgrades');
+require("@nomiclabs/hardhat-web3");
 
 task("accounts", "Prints the list of accounts", async () => {
   const accounts = await ethers.getSigners();
@@ -11,7 +12,6 @@ task("accounts", "Prints the list of accounts", async () => {
     console.log((await ethers.provider.getBalance(account.address)).toString());
   }
 });
-const ALCHEMY_KEY = "7rjyfJ9o5dWSND5dUhl1sfFjQpG24BlV";
 
 module.exports = {
   networks: {

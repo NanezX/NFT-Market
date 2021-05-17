@@ -1,7 +1,9 @@
 const { expect } = require("chai");
-const { ethers, upgrades } = require("hardhat");
+const { ethers, upgrades} = require("hardhat");
 const fetch = require("node-fetch");
 const hre = require("hardhat");
+
+const {time} = require('@openzeppelin/test-helpers');
 
 let owner, recipient, account1;
 
@@ -40,3 +42,12 @@ describe("Market NFT", ()=>{
         expect(account1.address).to.equal(_newRecipient);
     });
 });
+
+/*      TIME MANIPULATION Examples
+      let block1 = await time.latestBlock();
+      let time1 = await time.latest();
+      console.log(block1.toString());
+      console.log(time1.toString());
+
+      time.increase(time.duration.hours(1));
+*/
