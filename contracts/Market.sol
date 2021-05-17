@@ -40,7 +40,7 @@ contract Market is OwnableUpgradeable{
     /// @param _amount The amount of token that is offered.
     /// @param _deadline How long the offer will last
     /// @param _price The price in USD that is necesary to buy the amount of tokens
-    function createOffer(address _tokenAddress, uint _tokenId, uint64 _amount, uint64 _deadline, uint64 _price) external{
+    function createOffer(address _tokenAddress, uint _tokenId, uint88 _amount, uint64 _deadline, uint88 _price) external{
         IERC1155Upgradeable token = IERC1155Upgradeable(_tokenAddress);
         require(token.balanceOf(msg.sender, _tokenId)>= _amount, "Don't have enough tokens");
         offers[_tokenAddress][_tokenId] = offer(_amount, uint64(block.timestamp + _deadline), _price, STATE.PENDING, msg.sender);
