@@ -60,15 +60,21 @@ describe("Market NFT", ()=>{
         const FactoryContract = await ethers.getContractFactory("Market");
         const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
 
-        // Create offer into the market
-        let tx = await market.connect(ownerToken1).createOffer(
-            token1.address,
-            token1.id,
-            10,
-            (time.duration.hours(1)).toNumber(),
-            ethers.utils.parseEther('1')
-        );
-        tx = tx.wait();
+        // Create offer into the market (and check the event)
+        let tx;
+        await expect(
+            tx = await market.connect(ownerToken1).createOffer(
+                token1.address,
+                token1.id,
+                10,
+                (time.duration.hours(1)).toNumber(),
+                ethers.utils.parseEther('1')
+            )
+        )
+            .to.emit(market, 'OfferCreated')
+            .withArgs(0, token1.address, token1.id, 10, ethers.utils.parseEther('1'), await ownerToken1.getAddress());
+        tx = await tx.wait();
+
 
         // Aproved the market to manage the tokens
         tx = await Itoken.connect(ownerToken1).setApprovalForAll(
@@ -78,12 +84,9 @@ describe("Market NFT", ()=>{
         tx = await tx.wait();
 
         // Activated the offer in the market
-        tx = await market.connect(ownerToken1).activateOffer(
-            token1.address,
-            token1.id
-        );
+        tx = await market.connect(ownerToken1).activateOffer(0);
         tx = await tx.wait();
-        
+
         // Transfer the tokens
         tx = await market.connect(account1).singleTransfer(
             token1.address,

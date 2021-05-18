@@ -14,13 +14,24 @@ contract Market is OwnableUpgradeable{
     address payable recipient;
     enum STATE{ CANCELLED, ACTIVE, SELLED, PENDING}
     struct offer{
+        address tokenAddress;
+        uint96 tokenId;
         uint88 amount;
-        uint64 deadline;
-        uint88 price;
+        uint88 deadline;
+        uint72 price;
         STATE state;
         address creator;
     }
-    mapping(address => mapping(uint => offer)) offers;
+    uint quantityOffers;
+    mapping(uint => offer) offers;
+    event OfferCreated(
+        uint indexed id, 
+        address indexed tokenAddress, 
+        uint96 indexed tokenId,
+        uint88 amount,
+        uint88 price,
+        address creator
+    );
 
     /// @notice The function initializable to proxy.
     /// @dev Only is used one time. The fee is represented in bip [0 - 10000]
@@ -40,41 +51,44 @@ contract Market is OwnableUpgradeable{
     /// @param _amount The amount of token that is offered.
     /// @param _deadline How long the offer will last
     /// @param _price The price in USD that is necesary to buy the amount of tokens
-    function createOffer(address _tokenAddress, uint _tokenId, uint88 _amount, uint64 _deadline, uint88 _price) external{
+    function createOffer(address _tokenAddress, uint96 _tokenId, uint88 _amount, uint88 _deadline, uint72 _price) external {
         IERC1155Upgradeable token = IERC1155Upgradeable(_tokenAddress);
         require(token.balanceOf(msg.sender, _tokenId)>= _amount, "Don't have enough tokens");
-        offers[_tokenAddress][_tokenId] = offer(_amount, uint64(block.timestamp + _deadline), _price, STATE.PENDING, msg.sender);
+        offers[quantityOffers] = offer(_tokenAddress, _tokenId, _amount, uint88(block.timestamp + _deadline), _price, STATE.PENDING, msg.sender);
+        emit OfferCreated(quantityOffers,_tokenAddress, _tokenId, _amount, _price, msg.sender);
+        quantityOffers++;
     }
 
     /// @notice Activate an offer to make it available to buy
     /// @dev The msg.sender must be the same of the token owner
-    /// @param _tokenAddress The address of the offer token
-    /// @param _tokenId The id of the offer token
-    function activateOffer(address _tokenAddress, uint _tokenId) external{
-        require(STATE.PENDING==offers[_tokenAddress][_tokenId].state, "The offer is not pending");
-        require(msg.sender==offers[_tokenAddress][_tokenId].creator, "Not the offer creator");
-        IERC1155Upgradeable token = IERC1155Upgradeable(_tokenAddress);
-        require(token.isApprovedForAll(msg.sender, address(this)));
-        offers[_tokenAddress][_tokenId].state=STATE.ACTIVE;
+    /// @param _offerId The offer identifier 
+    function activateOffer(uint96 _offerId) external{
+        require(STATE.PENDING==offers[_offerId].state, "The offer is not pending");
+        require(msg.sender==offers[_offerId].creator, "Not the offer creator");
+        // IERC1155Upgradeable token = IERC1155Upgradeable(offers[_offerId].tokenAddress);
+        // (IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this));
+        require((IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)));
+        offers[_offerId].state=STATE.ACTIVE;
     }
 
-    /// @notice Get the properties of an offer
-    /// @param _tokenAddress The address of the offer token
-    /// @param _tokenId The id of the offer token
+    /// @notice Get all the properties of an offer
+    /// @param _offerId The offer identifier 
+    /// @return The token address in offer
+    /// @return The token id in offer
     /// @return The amount of token in the offer
     /// @return The timestamp that the offer will dissapier
     /// @return The price in USD that is necesary to buy the amount of tokens
     /// @return The owner of the tokens
     /// @return Actual state of the offer
-    function getOffer(address _tokenAddress, uint _tokenId) view public returns(uint88, uint64, uint88, STATE, address){
-        console.log("Gasleft 1: %s", gasleft());
-        // offer memory _offer = offers[_tokenAddress][_tokenId];
+    function getOffer(uint96 _offerId) view public returns(address, uint96, uint88, uint88, uint72, STATE, address){
         return (
-            offers[_tokenAddress][_tokenId].amount, 
-            offers[_tokenAddress][_tokenId].deadline,  
-            offers[_tokenAddress][_tokenId].price, 
-            offers[_tokenAddress][_tokenId].state,
-            offers[_tokenAddress][_tokenId].creator
+            offers[_offerId].tokenAddress, 
+            offers[_offerId].tokenId, 
+            offers[_offerId].amount, 
+            offers[_offerId].deadline,  
+            offers[_offerId].price, 
+            offers[_offerId].state,
+            offers[_offerId].creator
         );
     }
 
