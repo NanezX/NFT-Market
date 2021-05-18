@@ -65,9 +65,7 @@ contract Market is OwnableUpgradeable{
     function activateOffer(uint96 _offerId) external{
         require(STATE.PENDING==offers[_offerId].state, "The offer is not pending");
         require(msg.sender==offers[_offerId].creator, "Not the offer creator");
-        // IERC1155Upgradeable token = IERC1155Upgradeable(offers[_offerId].tokenAddress);
-        // (IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this));
-        require((IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)));
+        require((IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)), "The market is not approved");
         offers[_offerId].state=STATE.ACTIVE;
     }
 
@@ -92,13 +90,31 @@ contract Market is OwnableUpgradeable{
         );
     }
 
-    function buyTokenOffer(address _tokenAddress, uint _tokenId) external{
+    function buyTokenOffer(uint96 _offerId) external payable{
+        offer memory offerSolicited = offers[_offerId];
+        require(offerSolicited.state == STATE.ACTIVE, "The offer is not available");
+        if(block.timestamp >= offerSolicited.deadline){
+            offers[_offerId].state = STATE.CANCELLED;
+            require(true, "The offer has expired");
+        }
+        require(offerSolicited.creator != msg.sender, "The creator of the offer cannot buy their own offer");
+        require(msg.value >= offerSolicited.price, "Not enough ether sent ");
 
+        uint _fee = (msg.value*fee)/10000;
+        uint ethToSend = offerSolicited.price - _fee;
+        singleTransfer(offerSolicited.tokenAddress, offerSolicited.creator, msg.sender, offerSolicited.tokenId, offerSolicited.amount);
+
+        (bool success1, ) = recipient.call{value: _fee}("");
+        require(success1, "Fail when send ether to recipient");
+        (bool success,) = payable(offerSolicited.creator).call{value: ethToSend}("");
+        require(success, "Fail when send to the seller");
+
+
+        msg.sender.call{ value: address(this).balance }("");
     }
 
-    function singleTransfer(address contractToken, address from, address to, uint256 id, uint256 amount) external{
+    function singleTransfer(address contractToken, address from, address to, uint256 id, uint256 amount) internal{
         IERC1155Upgradeable token = IERC1155Upgradeable(contractToken);
-        require(token.isApprovedForAll(from, address(this)),"The market doesn't have permission to manage the tokens");
         token.safeTransferFrom(from, to, id, amount, "");
     }
 

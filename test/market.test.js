@@ -49,13 +49,12 @@ describe("Market NFT", ()=>{
         expect(account1.address).to.equal(_newRecipient);
     });
     
-    it("Transfer ERC1155 tokens", async ()=>{
+    it("Must be create an offer correctly", async ()=>{
         await hre.network.provider.request({
             method: "hardhat_impersonateAccount",
             params: [ownerToken_1]
         });
         const ownerToken1 = await ethers.provider.getSigner(ownerToken_1);
-        let Itoken = await ethers.getContractAt("IERC1155Upgradeable", token1.address);
 
         const FactoryContract = await ethers.getContractFactory("Market");
         const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
@@ -72,42 +71,104 @@ describe("Market NFT", ()=>{
             )
         )   // (Using Chai matchers to check the event. Oh yeah B) )
             .to.emit(market, 'OfferCreated')
-            .withArgs(0, token1.address, token1.id, 10, ethers.utils.parseEther('1'), await ownerToken1.getAddress());
+            .withArgs(
+                0, 
+                token1.address, 
+                token1.id, 
+                10, 
+                ethers.utils.parseEther('1'), 
+                await ownerToken1.getAddress()
+            );
+        tx = await tx.wait();
+
+        // Check the offer state (PENDING == 3)
+        // The function is: getOffer(Offer_ID)
+        let [,,,,,state,] = await market.getOffer(0);
+        expect(3).to.equal(state);
+
+    });
+
+    it("Must be approve and activate the offer", async ()=>{
+        await hre.network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [ownerToken_1]
+        });
+        const ownerToken1 = await ethers.provider.getSigner(ownerToken_1);
+        let Itoken1 = await ethers.getContractAt("IERC1155Upgradeable", token1.address);
+
+        const FactoryContract = await ethers.getContractFactory("Market");
+        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
+
+        let tx = await market.connect(ownerToken1).createOffer(
+                token1.address,
+                token1.id,
+                10,
+                (time.duration.hours(1)).toNumber(),
+                ethers.utils.parseEther('1')
+            );
         tx = await tx.wait();
 
         // Aproved the market to manage the tokens
-        tx = await Itoken.connect(ownerToken1).setApprovalForAll(
-            await market.address,
+        tx = await Itoken1.connect(ownerToken1).setApprovalForAll(
+            market.address,
             true
         );
         tx = await tx.wait();
 
-        let [a,b,c,d,ef] = await market.getOffer(0);
-        offers[_offerId].tokenAddress, 
-        offers[_offerId].tokenId, 
-        offers[_offerId].amount, 
-        offers[_offerId].deadline,  
-        offers[_offerId].price, 
-        offers[_offerId].state,
-        offers[_offerId].creator
-
-        // // Activated the offer in the market
-        // tx = await market.connect(ownerToken1).activateOffer(0);
-        // tx = await tx.wait();
-
-        // // Transfer the tokens
-        // tx = await market.connect(account1).singleTransfer(
-        //     token1.address,
-        //     ownerToken1.getAddress(),
-        //     account1.getAddress(),
-        //     token1.id, 
-        //     10
-        // );
-        // tx = await tx.wait();
-        // expect(10).to.equal(await Itoken.balanceOf(await account1.getAddress(), token1.id));
-        // expect(20).to.equal(await Itoken.balanceOf(await ownerToken1.getAddress(), token1.id));
+        // Activated the offer in the market
+        tx = await market.connect(ownerToken1).activateOffer(0);
+        tx = await tx.wait();
+        
+        // Check if is approved and if offer state is activated
+        const approved = await Itoken1.isApprovedForAll(await ownerToken1.getAddress(), market.address);
+        expect(true).to.equal(approved);
+        // (ACTIVE == 1)
+        [,,,,,state,] = await market.getOffer(0);
+        expect(1).to.equal(state);
     });
 
+    it("Approve and activate the offer", async ()=>{
+        await hre.network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [ownerToken_1]
+        });
+        const ownerToken1 = await ethers.provider.getSigner(ownerToken_1);
+        let Itoken1 = await ethers.getContractAt("IERC1155Upgradeable", token1.address);
+
+        const FactoryContract = await ethers.getContractFactory("Market");
+        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
+
+        // Create offer into the market and check the event
+        let tx = await market.connect(ownerToken1).createOffer(
+            token1.address,
+            token1.id,
+            10,
+            (time.duration.hours(1)).toNumber(),
+            ethers.utils.parseEther('1')
+        );
+        tx = await tx.wait();
+
+        // Aproved the market to manage the tokens
+        tx = await Itoken1.connect(ownerToken1).setApprovalForAll(
+            market.address,
+            true
+        );
+        tx = await tx.wait();
+
+        // Activated the offer in the market
+        tx = await market.connect(ownerToken1).activateOffer(0);
+        tx = await tx.wait();
+
+        const overrides = { 
+            value: ethers.utils.parseEther("1"),
+        };
+
+        // Transfer the tokens  
+        tx = await market.connect(account1).buyTokenOffer(0, overrides);
+        tx = await tx.wait();
+        expect(10).to.equal(await Itoken1.balanceOf(await account1.getAddress(), token1.id));
+        expect(20).to.equal(await Itoken1.balanceOf(await ownerToken1.getAddress(), token1.id));
+    });
     
 });
 
