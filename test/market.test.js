@@ -60,7 +60,7 @@ describe("Market NFT", ()=>{
         const FactoryContract = await ethers.getContractFactory("Market");
         const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
 
-        // Create offer into the market (and check the event)
+        // Create offer into the market and check the event
         let tx;
         await expect(
             tx = await market.connect(ownerToken1).createOffer(
@@ -70,7 +70,7 @@ describe("Market NFT", ()=>{
                 (time.duration.hours(1)).toNumber(),
                 ethers.utils.parseEther('1')
             )
-        )
+        )   // (Using Chai matchers to check the event. Oh yeah B) )
             .to.emit(market, 'OfferCreated')
             .withArgs(0, token1.address, token1.id, 10, ethers.utils.parseEther('1'), await ownerToken1.getAddress());
         tx = await tx.wait();
