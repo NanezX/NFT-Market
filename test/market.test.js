@@ -75,7 +75,6 @@ describe("Market NFT", ()=>{
             .withArgs(0, token1.address, token1.id, 10, ethers.utils.parseEther('1'), await ownerToken1.getAddress());
         tx = await tx.wait();
 
-
         // Aproved the market to manage the tokens
         tx = await Itoken.connect(ownerToken1).setApprovalForAll(
             await market.address,
@@ -83,21 +82,30 @@ describe("Market NFT", ()=>{
         );
         tx = await tx.wait();
 
-        // Activated the offer in the market
-        tx = await market.connect(ownerToken1).activateOffer(0);
-        tx = await tx.wait();
+        let [a,b,c,d,ef] = await market.getOffer(0);
+        offers[_offerId].tokenAddress, 
+        offers[_offerId].tokenId, 
+        offers[_offerId].amount, 
+        offers[_offerId].deadline,  
+        offers[_offerId].price, 
+        offers[_offerId].state,
+        offers[_offerId].creator
 
-        // Transfer the tokens
-        tx = await market.connect(account1).singleTransfer(
-            token1.address,
-            ownerToken1.getAddress(),
-            account1.getAddress(),
-            token1.id, 
-            10
-        );
-        tx = await tx.wait();
-        expect(10).to.equal(await Itoken.balanceOf(await account1.getAddress(), token1.id));
-        expect(20).to.equal(await Itoken.balanceOf(await ownerToken1.getAddress(), token1.id));
+        // // Activated the offer in the market
+        // tx = await market.connect(ownerToken1).activateOffer(0);
+        // tx = await tx.wait();
+
+        // // Transfer the tokens
+        // tx = await market.connect(account1).singleTransfer(
+        //     token1.address,
+        //     ownerToken1.getAddress(),
+        //     account1.getAddress(),
+        //     token1.id, 
+        //     10
+        // );
+        // tx = await tx.wait();
+        // expect(10).to.equal(await Itoken.balanceOf(await account1.getAddress(), token1.id));
+        // expect(20).to.equal(await Itoken.balanceOf(await ownerToken1.getAddress(), token1.id));
     });
 
     

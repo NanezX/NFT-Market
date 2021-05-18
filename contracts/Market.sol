@@ -11,6 +11,7 @@ import "hardhat/console.sol";
 /// @dev There are some things that must be done outside of the contract
 contract Market is OwnableUpgradeable{
     uint fee;
+    uint quantityOffers;
     address payable recipient;
     enum STATE{ CANCELLED, ACTIVE, SELLED, PENDING}
     struct offer{
@@ -22,7 +23,6 @@ contract Market is OwnableUpgradeable{
         STATE state;
         address creator;
     }
-    uint quantityOffers;
     mapping(uint => offer) offers;
     event OfferCreated(
         uint indexed id, 
