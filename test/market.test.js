@@ -17,18 +17,13 @@ describe("Market NFT", ()=>{
         // Getting hardhat accounts
         [owner, recipient, account1] = await ethers.getSigners();
     });
-
+/*
     it("Checking", async ()=>{
         // Deploying
         const FactoryContract = await ethers.getContractFactory("Market");
         const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
-
-        const _price = await market.getPrice(1);
-        console.log(_price.toString());
-
-
     });
-/*
+*/
     it("Must be return the correct owner, fee and recipient", async ()=>{
         // Deploying
         const FactoryContract = await ethers.getContractFactory("Market");
@@ -155,7 +150,7 @@ describe("Market NFT", ()=>{
             token1.id,
             10,
             (time.duration.hours(1)).toNumber(),
-            ethers.utils.parseEther('1')
+            100
         );
         tx = await tx.wait();
 
@@ -169,18 +164,20 @@ describe("Market NFT", ()=>{
         // Activated the offer in the market
         tx = await market.connect(ownerToken1).activateOffer(0);
         tx = await tx.wait();
-
+        const balanceBeforeSelled = await ownerToken1.getBalance();
+        
         const overrides = { 
             value: ethers.utils.parseEther("1"),
         };
 
         // Transfer the tokens  
-        tx = await market.connect(account1).buyTokenOffer(0, overrides);
+        tx = await market.connect(account1).buyTokenOffer(0,0, overrides);
         tx = await tx.wait();
         expect(10).to.equal(await Itoken1.balanceOf(await account1.getAddress(), token1.id));
         expect(20).to.equal(await Itoken1.balanceOf(await ownerToken1.getAddress(), token1.id));
+        expect(await ownerToken1.getBalance()).to.be.above(balanceBeforeSelled);
     });
-    */
+    
 });
 
 /*      TIME MANIPULATION Examples

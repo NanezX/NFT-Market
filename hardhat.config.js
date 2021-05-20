@@ -2,6 +2,7 @@ require('dotenv').config();
 require("@nomiclabs/hardhat-waffle");
 require('@nomiclabs/hardhat-ethers');
 require('@openzeppelin/hardhat-upgrades');
+require("hardhat-gas-reporter");
 require("@nomiclabs/hardhat-web3");
 
 task("accounts", "Prints the list of accounts", async () => {

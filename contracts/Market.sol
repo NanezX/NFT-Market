@@ -15,7 +15,7 @@ contract Market is OwnableUpgradeable{
     uint quantityOffers;
     address payable recipient;
     enum STATE{ CANCELLED, ACTIVE, SELLED, PENDING}
-    struct offer{
+    struct Offer{
         address tokenAddress;
         uint96 tokenId;
         uint88 amount;
@@ -24,7 +24,10 @@ contract Market is OwnableUpgradeable{
         STATE state;
         address creator;
     }
-    mapping(uint => offer) offers;
+    struct PaymentMethod{
+        AggregatorV3Interface agregator;
+        address token;
+    }
     event OfferCreated(
         uint indexed id, 
         address indexed tokenAddress, 
@@ -33,9 +36,9 @@ contract Market is OwnableUpgradeable{
         uint88 price,
         address creator
     );
-     AggregatorV3Interface[] internal aggregator;
-    //  AggregatorV3Interface internal aggregatorDAI;
-    //  AggregatorV3Interface internal aggregatorLINK;
+    mapping(uint => Offer) offers;
+    mapping(uint => PaymentMethod) paymentMethods;
+
     
     /// @notice The function initializable to proxy.
     /// @dev Only is used one time. The fee is represented in bip [0 - 10000]
@@ -45,23 +48,25 @@ contract Market is OwnableUpgradeable{
         OwnableUpgradeable.__Ownable_init();
         recipient = _recipient;
         fee = _fee;
-        aggregator.push(AggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419));
-        aggregator.push(AggregatorV3Interface(0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9));
-        aggregator.push(AggregatorV3Interface(0x2c1d072e956AFFC0D435Cb7AC38EF18d24d9127c));
+        _initPaymentMethods();
     }
 
-    function getPrice(uint _amount) public view returns (int){
-        (
-            uint80 roundID, 
-            int price,
-            uint startedAt,
-            uint timeStamp,
-            uint80 answeredInRound
-        ) = aggregator[1].latestRoundData();
-        uint8 decimals = aggregator[1].decimals();
-        
-        return ( ((100*(10**8))*(1*(10**18))) / price);
+    function _initPaymentMethods() internal initializer{
+        paymentMethods[0] = PaymentMethod(
+            AggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419), 
+            address(0)
+        );
+        paymentMethods[1] = PaymentMethod(
+            AggregatorV3Interface(0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9),
+            0x6B175474E89094C44Da98b954EedeAC495271d0F
+        );
+        paymentMethods[2] = PaymentMethod(
+            AggregatorV3Interface(0x2c1d072e956AFFC0D435Cb7AC38EF18d24d9127c),
+            0x514910771AF9Ca656af840dff83E8264EcF986CA
+        );
     }
+
+
 
     /// @notice Create an offer in the market
     /** @dev After create the offer, the creator must approve the market to manage the tokens and
@@ -73,9 +78,26 @@ contract Market is OwnableUpgradeable{
     /// @param _price The price in USD that is necesary to buy the amount of tokens
     function createOffer(address _tokenAddress, uint96 _tokenId, uint88 _amount, uint88 _deadline, uint72 _price) external {
         IERC1155Upgradeable token = IERC1155Upgradeable(_tokenAddress);
-        require(token.balanceOf(msg.sender, _tokenId)>= _amount, "Don't have enough tokens");
-        offers[quantityOffers] = offer(_tokenAddress, _tokenId, _amount, uint88(block.timestamp + _deadline), _price, STATE.PENDING, msg.sender);
-        emit OfferCreated(quantityOffers,_tokenAddress, _tokenId, _amount, _price, msg.sender);
+        require(
+            token.balanceOf(msg.sender, _tokenId)>= _amount, 
+            "Don't have enough tokens"
+        );
+        offers[quantityOffers] = Offer(
+            _tokenAddress, 
+            _tokenId, 
+            _amount, 
+            uint88(block.timestamp + _deadline), 
+            _price, 
+            STATE.PENDING, msg.sender
+        );
+        emit OfferCreated(
+            quantityOffers,
+            _tokenAddress, 
+            _tokenId, 
+            _amount, 
+            _price,
+            msg.sender
+        );
         quantityOffers++;
     }
 
@@ -85,7 +107,10 @@ contract Market is OwnableUpgradeable{
     function activateOffer(uint96 _offerId) external{
         require(STATE.PENDING==offers[_offerId].state, "The offer is not pending");
         require(msg.sender==offers[_offerId].creator, "Not the offer creator");
-        require((IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)), "The market is not approved");
+        require(
+            (IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)),
+            "The market is not approved"
+        );
         offers[_offerId].state=STATE.ACTIVE;
     }
 
@@ -109,41 +134,69 @@ contract Market is OwnableUpgradeable{
             offers[_offerId].creator
         );
     }
-    // Need a event**************
-    function buyTokenOffer(uint96 _offerId) external payable{
-        offer memory offerSolicited = offers[_offerId];
-        require(offerSolicited.state == STATE.ACTIVE, "The offer is not available");
-        if(block.timestamp >= offerSolicited.deadline){
-            offers[_offerId].state = STATE.CANCELLED;
+
+    modifier checkOffer(uint96 id){
+        require(offers[id].state == STATE.ACTIVE, "The offer is not available");
+        if(offers[id].deadline <= block.timestamp){
+            offers[id].state = STATE.CANCELLED;
             require(true, "The offer has expired");
         }
-        require(offerSolicited.creator != msg.sender, "The creator of the offer cannot buy their own offer");
-        require(msg.value >= offerSolicited.price, "Not enough ether sent ");
+        require(
+            offers[id].creator != msg.sender, 
+            "The creator of the offer cannot buy their own offer"
+        );
+        _;
+    }
 
-        uint _fee = (msg.value*fee)/10000;
-        uint ethToSend = offerSolicited.price - _fee;
-        singleTransfer(offerSolicited.tokenAddress, offerSolicited.creator, msg.sender, offerSolicited.tokenId, offerSolicited.amount);
+    // Need a event**************
+    function buyTokenOffer(uint96 _offerId, uint8 _payMethod) external payable checkOffer(_offerId){
+        Offer memory offerSolicited = offers[_offerId];
+        if(_payMethod == 0){
+            _buyWithEther(offerSolicited);
+        }else{
+            _buyWithTokens(offerSolicited, _payMethod);
+        }
+        
+    }
 
-        // With ether
-        (bool success, ) = recipient.call{value: _fee}("");
-        require(success, "Fail when send ether to recipient");
-        (success,) = payable(offerSolicited.creator).call{value: ethToSend}("");
+    function _buyWithEther(Offer memory _offer) internal{
+        uint amountETH = _getPrice(_offer.price, 0, 18);
+        require(msg.value >= amountETH, "Not enough ether sent");
+        uint _fee = (amountETH*fee)/10000;
+        uint amountToSend = amountETH - _fee;
+        _singleTransfer(_offer);
+
+        (bool success,) = payable(_offer.creator).call{value: amountToSend}("");
         require(success, "Fail when send to the seller");
-        (success,) = msg.sender.call{ value: address(this).balance }("");
-        require(success, "Fail when refund the rest to buyer");
+        (success, ) = recipient.call{value: _fee}("");
+        require(success, "Fail when send ether to recipient");
+        if(msg.value > amountETH){
+            (success,) = msg.sender.call{ value: address(this).balance }("");
+            require(success, "Fail when refund the rest to buyer");
+        }
+    }
+    
+    function _buyWithTokens(Offer memory _offer, uint8 _tokenToPay) internal{
+        
+    }
+    function _getPrice(uint _priceOffer, uint8 _paymentMethod, uint _tokenDecimals) internal view returns (uint){
+        (, int price,,,) = paymentMethods[_paymentMethod].agregator.latestRoundData();
+        require(price > 0);
+        uint8 agregatorDecimals = paymentMethods[_paymentMethod].agregator.decimals();
+        return ((_priceOffer * (10**agregatorDecimals)) *  (10**_tokenDecimals)) / uint(price);
     }
 
-    function singleTransfer(
-        address contractToken, 
-        address from, 
-        address to, 
-        uint256 id, 
-        uint256 amount
-    ) internal{
-        IERC1155Upgradeable token = IERC1155Upgradeable(contractToken);
-        token.safeTransferFrom(from, to, id, amount, "");
+    function _singleTransfer(Offer memory _offer)internal{
+        IERC1155Upgradeable token = IERC1155Upgradeable(_offer.tokenAddress);
+        token.safeTransferFrom(
+            _offer.creator, 
+            msg.sender, 
+            _offer.tokenId, 
+            _offer.amount, 
+            ""
+        );
     }
-
+            
     /** @notice Set the new fee that will be transfer to recipient for every sell.  
     Only the owner of the market can set a new price fee */
     /// @dev The fee must be set with a bases point (bip) within 0 and 10000
