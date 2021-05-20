@@ -18,6 +18,7 @@
     "deploy": "hardhat run scripts/deploy.js"
   },
   "dependencies": {
+    "@chainlink/contracts": "^0.1.7",
     "@openzeppelin/contracts-upgradeable": "^4.1.0",
     "dotenv": "^9.0.2"
   }

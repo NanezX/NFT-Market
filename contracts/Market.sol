@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "hardhat/console.sol";
 
 /// @title A market of ERC-1155 tokens
@@ -32,7 +33,10 @@ contract Market is OwnableUpgradeable{
         uint88 price,
         address creator
     );
-
+     AggregatorV3Interface[] internal aggregator;
+    //  AggregatorV3Interface internal aggregatorDAI;
+    //  AggregatorV3Interface internal aggregatorLINK;
+    
     /// @notice The function initializable to proxy.
     /// @dev Only is used one time. The fee is represented in bip [0 - 10000]
     /// @param _recipient The recipient that will receive the transactions fees
@@ -41,6 +45,22 @@ contract Market is OwnableUpgradeable{
         OwnableUpgradeable.__Ownable_init();
         recipient = _recipient;
         fee = _fee;
+        aggregator.push(AggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419));
+        aggregator.push(AggregatorV3Interface(0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9));
+        aggregator.push(AggregatorV3Interface(0x2c1d072e956AFFC0D435Cb7AC38EF18d24d9127c));
+    }
+
+    function getPrice(uint _amount) public view returns (int){
+        (
+            uint80 roundID, 
+            int price,
+            uint startedAt,
+            uint timeStamp,
+            uint80 answeredInRound
+        ) = aggregator[1].latestRoundData();
+        uint8 decimals = aggregator[1].decimals();
+        
+        return ( ((100*(10**8))*(1*(10**18))) / price);
     }
 
     /// @notice Create an offer in the market
@@ -89,7 +109,7 @@ contract Market is OwnableUpgradeable{
             offers[_offerId].creator
         );
     }
-
+    // Need a event**************
     function buyTokenOffer(uint96 _offerId) external payable{
         offer memory offerSolicited = offers[_offerId];
         require(offerSolicited.state == STATE.ACTIVE, "The offer is not available");
@@ -104,16 +124,22 @@ contract Market is OwnableUpgradeable{
         uint ethToSend = offerSolicited.price - _fee;
         singleTransfer(offerSolicited.tokenAddress, offerSolicited.creator, msg.sender, offerSolicited.tokenId, offerSolicited.amount);
 
-        (bool success1, ) = recipient.call{value: _fee}("");
-        require(success1, "Fail when send ether to recipient");
-        (bool success,) = payable(offerSolicited.creator).call{value: ethToSend}("");
+        // With ether
+        (bool success, ) = recipient.call{value: _fee}("");
+        require(success, "Fail when send ether to recipient");
+        (success,) = payable(offerSolicited.creator).call{value: ethToSend}("");
         require(success, "Fail when send to the seller");
-
-
-        msg.sender.call{ value: address(this).balance }("");
+        (success,) = msg.sender.call{ value: address(this).balance }("");
+        require(success, "Fail when refund the rest to buyer");
     }
 
-    function singleTransfer(address contractToken, address from, address to, uint256 id, uint256 amount) internal{
+    function singleTransfer(
+        address contractToken, 
+        address from, 
+        address to, 
+        uint256 id, 
+        uint256 amount
+    ) internal{
         IERC1155Upgradeable token = IERC1155Upgradeable(contractToken);
         token.safeTransferFrom(from, to, id, amount, "");
     }

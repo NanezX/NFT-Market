@@ -18,6 +18,17 @@ describe("Market NFT", ()=>{
         [owner, recipient, account1] = await ethers.getSigners();
     });
 
+    it("Checking", async ()=>{
+        // Deploying
+        const FactoryContract = await ethers.getContractFactory("Market");
+        const market = await upgrades.deployProxy(FactoryContract.connect(owner), [recipient.address, 100]);
+
+        const _price = await market.getPrice(1);
+        console.log(_price.toString());
+
+
+    });
+/*
     it("Must be return the correct owner, fee and recipient", async ()=>{
         // Deploying
         const FactoryContract = await ethers.getContractFactory("Market");
@@ -169,7 +180,7 @@ describe("Market NFT", ()=>{
         expect(10).to.equal(await Itoken1.balanceOf(await account1.getAddress(), token1.id));
         expect(20).to.equal(await Itoken1.balanceOf(await ownerToken1.getAddress(), token1.id));
     });
-    
+    */
 });
 
 /*      TIME MANIPULATION Examples
