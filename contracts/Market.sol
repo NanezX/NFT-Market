@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.so
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./interfaces/InterfaceToken20.sol";
 import "hardhat/console.sol";
+// Need add Safemath
 
 /// @title A market of ERC-1155 tokens
 /// @author Hernandez, Victor
