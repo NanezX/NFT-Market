@@ -130,7 +130,7 @@ describe("Market NFT", ()=>{
         expect(1).to.equal(state);
     });
 
-    it("Must be buy correctly with Ether", async ()=>{
+    it("Must be purchased correctly with Ether", async ()=>{
         await hre.network.provider.request({
             method: "hardhat_impersonateAccount",
             params: [ownerToken_1155]
@@ -175,7 +175,7 @@ describe("Market NFT", ()=>{
         expect(await ownerToken1155.getBalance()).to.be.above(balanceBeforeSelled);
     });
 
-    it("Must be buy correctly with DAI Token", async ()=>{
+    it("Must be purchased correctly with DAI Token", async ()=>{
         await hre.network.provider.request({
             method: "hardhat_impersonateAccount",
             params: [ownerToken_1155]

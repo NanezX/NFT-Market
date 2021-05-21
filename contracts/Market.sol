@@ -12,11 +12,7 @@ import "hardhat/console.sol";
 /// @notice This contract can be useful to sell and buy custom ERC-1155 tokens 
 /// @dev There are some things that must be done outside of the contract
 contract Market is OwnableUpgradeable{
-    uint fee;
-    uint quantityOffers;
-    address payable recipient;
-    enum STATE{ CANCELLED, ACTIVE, SELLED, PENDING}
-    struct Offer{
+    struct Offer {
         address tokenAddress;
         uint96 priceUSD;
         uint tokenId;
@@ -25,10 +21,15 @@ contract Market is OwnableUpgradeable{
         address creator;
         STATE state;
     }
-    struct PaymentMethod{
+    struct PaymentMethod {
         AggregatorV3Interface agregator;
         address token;
     }
+    uint fee;
+    uint quantityOffers;
+    address payable recipient;
+    enum STATE{ CANCELLED, ACTIVE, SOLD, PENDING}
+
     event OfferCreated(
         uint indexed id, 
         address indexed tokenAddress, 
@@ -67,7 +68,7 @@ contract Market is OwnableUpgradeable{
 
     modifier checkOffer(uint id){
         require(offers[id].state == STATE.ACTIVE, "The offer is not available");
-        if(offers[id].deadline <= block.timestamp){
+        if(offers[id].deadline <= block.timestamp) {
             offers[id].state = STATE.CANCELLED;
             require(true, "The offer has expired");
         }
@@ -143,17 +144,26 @@ contract Market is OwnableUpgradeable{
 
     /// @notice Activate an offer to make it available to buy
     /// @dev The msg.sender must be the same of the token owner
-    /// @param _offerId The offer identifier 
-    function activateOffer(uint _offerId) external onlyCreator(_offerId){
+    /// @param offerId The offer identifier 
+    function activateOffer(uint offerId) external onlyCreator(offerId){
         require(
-            STATE.PENDING==offers[_offerId].state,
+            STATE.PENDING==offers[offerId].state,
             "The offer is not pending"
         );
         require(
-            (IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)),
+            (IERC1155Upgradeable(offers[offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)),
             "The market is not approved"
         );
-        offers[_offerId].state=STATE.ACTIVE;
+        offers[offerId].state=STATE.ACTIVE;
+    }
+    
+    function cancelOffer(uint offerId) external onlyCreator(offerId){
+        require(
+            offers[offerId].state== STATE.PENDING|| offers[offerId].state== STATE.ACTIVE,
+            "The offer is already canceled or sold"
+        );
+        offers[offerId].state=STATE.CANCELLED;
+        // Need a event**************
     }
 
         // Need a event**************
@@ -162,12 +172,12 @@ contract Market is OwnableUpgradeable{
         payable 
         checkOffer(offerId)
         {
-        if(_payMethod == 0){
+        if(_payMethod == 0) {
             _buyWithEther(offerId);
-        }else{
+        }else {
             _buyWithTokens(_payMethod, offerId);
         }
-        offers[offerId].state = STATE.SELLED;
+        offers[offerId].state = STATE.SOLD;
     }
 
     /// @notice Get the actual fee for every sell
@@ -185,10 +195,10 @@ contract Market is OwnableUpgradeable{
     /// @notice Get all the properties of an offer
     /// @param _offerId The offer identifier 
     /// @return The token address in offer
+    /// @return The price in USD
     /// @return The token id in offer
     /// @return The amount of token in the offer
-    /// @return The timestamp that the offer will dissapier
-    /// @return The price in USD that is necesary to buy the amount of tokens
+    /// @return The time that the offer will dissapier
     /// @return The owner of the tokens
     /// @return Actual state of the offer
     function getOffer(uint _offerId) 
@@ -207,11 +217,15 @@ contract Market is OwnableUpgradeable{
         );
     }
 
+    /// @notice Get the amount to reach the price of the offer with the chosen method
+    /// @param offerId The offer identifier 
+    /// @param paymentMethod The chosen payment method
+    /// @return The amount of ETH of token needed to reach the price in USD
     function getPrice(uint offerId, uint8 paymentMethod) public view returns (uint){
         uint decimals;
-        if (paymentMethod==0){
+        if (paymentMethod==0) {
             decimals=18;
-        }else{
+        }else {
             InterfaceToken20 token = InterfaceToken20(paymentMethods[paymentMethod].token);
             decimals=token.decimals();
         }
@@ -222,42 +236,56 @@ contract Market is OwnableUpgradeable{
         return ((offers[offerId].priceUSD * (10**agregatorDecimals)) *  (10**decimals)) / uint(price);
     }
 
+    // Buy the offer with Ether
     function _buyWithEther(uint _offerId) internal{
         uint amountETH = getPrice(_offerId, 0);
-        require(msg.value >= amountETH, "Not enough ether sent");
-
+        require(
+            msg.value >= amountETH, 
+            "Not enough ether sent"
+        );
         uint _fee = (amountETH*fee)/10000;
         uint amountToSend = amountETH - _fee;
         Offer memory offer = offers[_offerId];
-        _singleTransfer(offer);
+        _TransferToken1155(offer);
 
-        (bool success,) = payable(offer.creator).call{value: amountToSend}("");
-        require(success, "Fail when send to the seller");
-        (success, ) = recipient.call{value: _fee}("");
-        require(success, "Fail when send ether to recipient");
+        _sendETH(offer.creator, amountToSend);
+        _sendETH(recipient, _fee);
         if(msg.value > amountETH){
-            (success,) = msg.sender.call{ value: address(this).balance }("");
-            require(success, "Fail when refund the rest to buyer");
+            _sendETH(msg.sender, address(this).balance);
         }
     }
-    
+
+    // Buy the offer with Tokens
     function _buyWithTokens(uint8 _tokenToPay, uint _offerId) internal {
         uint amountTokens = getPrice(_offerId, _tokenToPay);
         InterfaceToken20 token = InterfaceToken20(paymentMethods[_tokenToPay].token);
-        require (token.allowance(msg.sender, address(this))>=amountTokens, "Not approved enough tokens to spend");
-
+        require (
+            token.allowance(msg.sender, address(this))>=amountTokens, 
+            "Not approved enough tokens to spend"
+        );
         uint _fee = (amountTokens*fee)/10000;
         uint amountToSend = amountTokens - _fee;
          Offer memory offer = offers[_offerId];
-        _singleTransfer(offer);
+        _TransferToken1155(offer);
 
-        bool success = token.transferFrom(msg.sender, offer.creator, amountToSend);
-        require(success, "Fail when transfer the payment");
-        success = token.transferFrom(msg.sender, recipient, _fee);
-        require(success, "Fail when transfer fee to the recipient");
+        _sendToken(token, msg.sender, offer.creator, amountToSend);
+        _sendToken(token, msg.sender, recipient, _fee);
     }
 
-    function _singleTransfer(Offer memory _offer)internal{
+    // Send an _amount. Avoiding repeat code
+    function _sendETH(address _to, uint _amount) internal{
+        (bool success,) = _to.call{value: _amount}("");
+        require(success, "Fail when send ETH");
+    }
+
+    // Send an _amount of token. Avoiding repeat code
+    function _sendToken(InterfaceToken20 _token, address _from, address _to, uint _amount) internal{
+        bool success = _token.transferFrom(_from, _to, _amount);
+        require(success, "Fail when transfer tokens");
+    }
+
+    // Transfer the 1155 token of  the offer 
+    function _TransferToken1155(Offer memory _offer) internal{
         IERC1155Upgradeable token = IERC1155Upgradeable(_offer.tokenAddress);
         token.safeTransferFrom(
             _offer.creator, 
