@@ -10,7 +10,7 @@ import "hardhat/console.sol";
 /// @title A market of ERC-1155 tokens
 /// @author Hernandez, Victor
 /// @notice This contract can be useful to sell and buy custom ERC-1155 tokens 
-/// @dev There are some things that must be done outside of the contract
+/// @dev There are a few things that need to be done outside, like approving the management of the token.
 contract Market is OwnableUpgradeable{
     struct Offer {
         address tokenAddress;
@@ -25,11 +25,12 @@ contract Market is OwnableUpgradeable{
         AggregatorV3Interface agregator;
         address token;
     }
+    enum STATE{ CANCELLED, ACTIVE, SOLD, PENDING}
+    mapping(uint => Offer) offers;
+    mapping(uint => PaymentMethod) paymentMethods;
     uint fee;
     uint quantityOffers;
     address payable recipient;
-    enum STATE{ CANCELLED, ACTIVE, SOLD, PENDING}
-
     event OfferCreated(
         uint indexed id, 
         address indexed tokenAddress, 
@@ -38,8 +39,6 @@ contract Market is OwnableUpgradeable{
         uint96 price,
         address creator
     );
-    mapping(uint => Offer) offers;
-    mapping(uint => PaymentMethod) paymentMethods;
 
     /// @notice The function initializable to proxy.
     /// @dev Only is used one time. The fee is represented in bip [0 - 10000]
