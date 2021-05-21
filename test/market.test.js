@@ -77,11 +77,11 @@ describe("Market NFT", ()=>{
             .to.emit(market, 'OfferCreated')
             .withArgs(
                 0, 
+                await ownerToken1155.getAddress(),
                 token1155.address, 
                 token1155.id, 
                 10, 
-                ethers.utils.parseEther('1'), 
-                await ownerToken1155.getAddress()
+                ethers.utils.parseEther('1')
             );
         tx = await tx.wait();
 

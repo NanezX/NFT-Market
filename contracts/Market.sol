@@ -31,13 +31,26 @@ contract Market is OwnableUpgradeable{
     uint fee;
     uint quantityOffers;
     address payable recipient;
-    event OfferCreated(
+    event OfferCreated (
         uint indexed id, 
-        address indexed tokenAddress, 
-        uint indexed tokenId,
+        address indexed creator,
+        address tokenAddress, 
+        uint tokenId,
         uint128 amount,
+        uint96 price
+    );
+    event OfferSold (
+        uint indexed id,
+        address indexed buyer,
         uint96 price,
-        address creator
+        address tokenAddress, 
+        uint tokenId
+    );
+    event OfferCancelled (
+        uint indexed id,
+        address indexed creator,
+        address tokenAddress, 
+        uint tokenId
     );
 
     /// @notice The function initializable to proxy.
@@ -132,11 +145,11 @@ contract Market is OwnableUpgradeable{
         );
         emit OfferCreated(
             quantityOffers,
+            msg.sender,
             _tokenAddress, 
             _tokenId, 
             _amount, 
-            _priceUSD,
-            msg.sender
+            _priceUSD
         );
         quantityOffers++;
     }
@@ -156,16 +169,21 @@ contract Market is OwnableUpgradeable{
         offers[offerId].state=STATE.ACTIVE;
     }
     
+    // Need a event**************
     function cancelOffer(uint offerId) external onlyCreator(offerId){
         require(
             offers[offerId].state== STATE.PENDING|| offers[offerId].state== STATE.ACTIVE,
             "The offer is already canceled or sold"
         );
         offers[offerId].state=STATE.CANCELLED;
-        // Need a event**************
+        emit OfferCancelled (
+            offerId,
+            offers[offerId].creator,
+            offers[offerId].tokenAddress, 
+             offers[offerId].tokenId
+        );
     }
 
-        // Need a event**************
     function buyTokenOffer(uint offerId, uint8 _payMethod) 
         external 
         payable 
@@ -177,6 +195,13 @@ contract Market is OwnableUpgradeable{
             _buyWithTokens(_payMethod, offerId);
         }
         offers[offerId].state = STATE.SOLD;
+        emit OfferSold (
+            offerId,
+            msg.sender,
+            offers[offerId].priceUSD,
+            offers[offerId].tokenAddress, 
+            offers[offerId].tokenId
+        );
     }
 
     /// @notice Get the actual fee for every sell
