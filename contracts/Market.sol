@@ -169,7 +169,6 @@ contract Market is OwnableUpgradeable{
         offers[offerId].state=STATE.ACTIVE;
     }
     
-    // Need a event**************
     function cancelOffer(uint offerId) external onlyCreator(offerId){
         require(
             offers[offerId].state== STATE.PENDING|| offers[offerId].state== STATE.ACTIVE,
