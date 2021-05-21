@@ -77,6 +77,14 @@ contract Market is OwnableUpgradeable{
         );
         _;
     }
+    
+    modifier onlyCreator(uint offerId){
+        require(
+            msg.sender==offers[offerId].creator, 
+            "Not the offer creator"
+        );
+        _;
+    }
 
     /// @notice Set the new fee that will be transfer to recipient for every sell.
     /// @dev The fee must be set with a bases point (bip) within 0 and 10000
@@ -136,14 +144,10 @@ contract Market is OwnableUpgradeable{
     /// @notice Activate an offer to make it available to buy
     /// @dev The msg.sender must be the same of the token owner
     /// @param _offerId The offer identifier 
-    function activateOffer(uint _offerId) external{
+    function activateOffer(uint _offerId) external onlyCreator(_offerId){
         require(
             STATE.PENDING==offers[_offerId].state,
             "The offer is not pending"
-        );
-        require(
-            msg.sender==offers[_offerId].creator, 
-            "Not the offer creator"
         );
         require(
             (IERC1155Upgradeable(offers[_offerId].tokenAddress)).isApprovedForAll(msg.sender, address(this)),
