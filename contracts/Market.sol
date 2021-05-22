@@ -37,21 +37,21 @@ contract Market is OwnableUpgradeable{
         address indexed creator,
         address tokenAddress, 
         uint tokenId,
-        uint128 amount,
-        uint96 price
+        uint time
     );
     event OfferSold (
         uint indexed id,
         address indexed buyer,
-        uint96 price,
         address tokenAddress, 
-        uint tokenId
+        uint tokenId,
+        uint time
     );
     event OfferCancelled (
         uint indexed id,
         address indexed creator,
         address tokenAddress, 
-        uint tokenId
+        uint tokenId,
+        uint time
     );
 
     /// @notice The function initializable to proxy.
@@ -148,9 +148,8 @@ contract Market is OwnableUpgradeable{
             quantityOffers,
             msg.sender,
             _tokenAddress, 
-            _tokenId, 
-            _amount, 
-            _priceUSD
+            _tokenId,
+            block.timestamp
         );
         quantityOffers++;
     }
@@ -180,7 +179,8 @@ contract Market is OwnableUpgradeable{
             offerId,
             offers[offerId].creator,
             offers[offerId].tokenAddress, 
-             offers[offerId].tokenId
+            offers[offerId].tokenId,
+            block.timestamp
         );
     }
 
@@ -195,12 +195,12 @@ contract Market is OwnableUpgradeable{
             _buyWithTokens(_payMethod, offerId);
         }
         offers[offerId].state = STATE.SOLD;
-        emit OfferSold (
+        emit OfferSold(
             offerId,
             msg.sender,
-            offers[offerId].priceUSD,
             offers[offerId].tokenAddress, 
-            offers[offerId].tokenId
+            offers[offerId].tokenId,
+            block.timestamp
         );
     }
 
