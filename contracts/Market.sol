@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./interfaces/InterfaceToken20.sol";
 import "hardhat/console.sol";
-// Need add Safemath
 
 /// @title A market of ERC-1155 tokens
 /// @author Hernandez, Victor
@@ -17,8 +15,8 @@ contract Market is OwnableUpgradeable{
         address tokenAddress;
         uint96 priceUSD;
         uint tokenId;
-        uint128 amount;
-        uint128 deadline;
+        uint amount;
+        uint deadline;
         address creator;
         STATE state;
     }
@@ -94,7 +92,7 @@ contract Market is OwnableUpgradeable{
     
     modifier onlyCreator(uint offerId){
         require(
-            msg.sender==offers[offerId].creator, 
+            msg.sender == offers[offerId].creator, 
             "Not the offer creator"
         );
         _;
@@ -124,8 +122,8 @@ contract Market is OwnableUpgradeable{
     function createOffer(
         address _tokenAddress, 
         uint _tokenId, 
-        uint128 _amount, 
-        uint128 _deadline, 
+        uint _amount, 
+        uint _deadline, 
         uint96 _priceUSD
         ) 
         external 
@@ -140,7 +138,7 @@ contract Market is OwnableUpgradeable{
             _priceUSD, 
             _tokenId, 
             _amount, 
-            uint128(block.timestamp + _deadline), 
+            _deadline + block.timestamp, 
             msg.sender,
             STATE.PENDING 
         );
@@ -228,7 +226,7 @@ contract Market is OwnableUpgradeable{
     function getOffer(uint _offerId) 
         external 
         view 
-        returns (address, uint96, uint, uint128, uint128, address, STATE)
+        returns (address, uint96, uint, uint, uint, address, STATE)
         {
         return (
             offers[_offerId].tokenAddress, 
