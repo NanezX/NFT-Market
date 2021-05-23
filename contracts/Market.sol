@@ -81,7 +81,7 @@ contract Market is OwnableUpgradeable{
         require(offers[id].state == STATE.ACTIVE, "The offer is not available");
         if(offers[id].deadline <= block.timestamp) {
             offers[id].state = STATE.CANCELLED;
-            require(true, "The offer has expired");
+            require(false, "The offer has expired");
         }
         require(
             offers[id].creator != msg.sender, 
@@ -131,7 +131,7 @@ contract Market is OwnableUpgradeable{
         IERC1155Upgradeable token = IERC1155Upgradeable(_tokenAddress);
         require(
             token.balanceOf(msg.sender, _tokenId)>= _amount, 
-            "Don't have enough tokens"
+            "Do not have enough tokens"
         );
         offers[quantityOffers] = Offer(
             _tokenAddress, 

@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers, upgrades} = require("hardhat");
 const fetch = require("node-fetch");
 const hre = require("hardhat");
-const {time} = require('@openzeppelin/test-helpers');
+const {time} = require("@openzeppelin/test-helpers");
 
 // Accounts
 const ownerToken_1155 = "0x5a098be98f6715782ee73dc9c5b9574bd4c130c9";
@@ -136,7 +136,6 @@ describe("Market NFT - Basics", ()=>{
     });
 
     it("Must be cancel the offers", async ()=>{
-    
         // Create two offers into the market and check the event emitted
         let tx;
         for (let i=0; i<2; i++){
@@ -349,174 +348,166 @@ describe("Market NFT - Trades", ()=>{
     });
     
 });
-/*
-describe("Market NFT - Requirements management", ()=>{
-    beforeEach(async ()=>{
-        // Deploying
-        FactoryContract = await ethers.getContractFactory("Market");
-        market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
-    });
 
-    it("Must be purchased the offer correctly with Ether", async ()=>{
-        // Create offer into the market
-        let tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            10,
-            (time.duration.hours(1)).toNumber(),
-            100
-        );
-        tx = await tx.wait();
+describe("Market NFT - Requirements management of the offers", ()=>{
 
-        // Approve the market to manage the offered tokens.
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
+    describe("Conditions when creating offers", ()=>{
+        beforeEach(async ()=>{
+            // Deploying
+            FactoryContract = await ethers.getContractFactory("Market");
+            market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
+        });
 
-        // Activated the offer in the market
-        tx = await market.connect(ownerToken1155).activateOffer(0);
-        tx = await tx.wait();
+        it("Should not create the offer without enough tokens to sell", async ()=>{
+            // Tying to create an offer without enough token
+            let tx;
+            await expect(
+                market.connect(ownerToken1155).createOffer(
+                    token1155.address, 
+                    token1155.id, 
+                    50, // Offer with 50 tokens 1155 that the account does not have
+                    (time.duration.hours(1)).toNumber(), 
+                    100
+                )
+            )
+            .to.be.revertedWith("Do not have enough tokens");
+        });
 
-        // Getting the creator ETH balance before selling the offer
-        const balanceETHBeforeSelled = await ownerToken1155.getBalance();
-
-        // Buy the offer. (offerId: 0, method: 0 == EHT) and checking the event emitted
-        await expect(tx = await market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
-            .to.emit(market, 'OfferSold')
-            .withArgs(
-                0, 
-                await account1.getAddress(),
-                token1155.address, 
-                token1155.id, 
-                await time.latestBlock()
+        it("Should not allow activating the offer without the tokens approval", async ()=>{
+            // Create offer into the market
+            let tx = await market.connect(ownerToken1155).createOffer(
+                token1155.address,
+                token1155.id,
+                10,
+                (time.duration.hours(1)).toNumber(),
+                100
             );
-        tx = await tx.wait();
-
-        expect(10).to.equal(await Itoken1155.balanceOf(await account1.getAddress(), token1155.id));
-        expect(20).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
-        expect(await ownerToken1155.getBalance()).to.be.above(balanceETHBeforeSelled);
-    });
-
-    it("Must be purchased correctly with DAI Token", async ()=>{
-        // Create offer into the market
-        let tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            5,
-            (time.duration.hours(1)).toNumber(),
-            50
-        );
-        tx = await tx.wait();
-
-        // Aproved the market to manage the tokens
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
-        
-        // Activated the offer in the market
-        tx = await market.connect(ownerToken1155).activateOffer(0);
-        tx = await tx.wait();
-
-        // Getting the aprox token amount to reach the price of offer 0 with method 1 (DAI)
-        let amountAproxToken = await market.getPrice(0, 1);
-
-        // Setting an margin of 2% to the price
-        amountAproxToken = (amountAproxToken.mul(102)).div(100);
-
-        // Approve the market to manage the ERC20 tokens ()
-        tx = await ItokenDAI.connect(buyerDAI).approve(market.address, amountAproxToken);
-        tx = await tx.wait();
-
-        // Getting the creator DAI balance before selling the offer
-        const balanceDAIcreator = await ItokenDAI.balanceOf(await ownerToken1155.getAddress());
-
-        // Buy the offer. (offerId: 0, method: 1 == DAI) and checking the event emitted
-        await expect(tx = await market.connect(buyerDAI).buyTokenOffer(0,1))
-            .to.emit(market, 'OfferSold')
-            .withArgs(
-                0, 
-                await buyerDAI.getAddress(), 
-                token1155.address, 
-                token1155.id, 
-                await time.latestBlock()
-            );
-        tx = await tx.wait();
-
-        expect(5).to.equal(await Itoken1155.balanceOf(await buyerDAI.getAddress(), token1155.id));
-        expect(15).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
-        expect(await ItokenDAI.balanceOf(await ownerToken1155.getAddress())).to.be.above(balanceDAIcreator);
-    });
-
-    it("Must be create two offer and only buy the 2nd offer with LINK", async ()=>{
-        // Create the 1st offer (10 tokens ERC1155)
-        let tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            10,
-            (time.duration.hours(1)).toNumber(),
-            100
-        );
-        tx = await tx.wait();
-
-        // Create the 2nd offer (5 tokens ERC1155)
-        tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            5,
-            (time.duration.hours(1)).toNumber(),
-            50
-        );
-        tx = await tx.wait();
-
-        // Aproved the market to manage the tokens
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
-
-        // Activating the offer 0 and 1 in the market
-        for (let i=0; i<2; i++){
-            tx = await market.connect(ownerToken1155).activateOffer(i);
             tx = await tx.wait();
-        }
 
-        // Getting the aprox token amount to reach the price of 2nd offer (ID:1) with method 2 (LINK)
-        let amountAproxToken = await market.getPrice(1, 2);
+            // Activate the offer on the market (without any token approval)
+            await expect(market.connect(ownerToken1155).activateOffer(0))
+                .to.be.revertedWith("The market is not approved");
+        });
 
-        // Setting an margin of 2% to the price
-        amountAproxToken = (amountAproxToken.mul(102)).div(100);
-
-        // Approve the market to manage the ERC20 tokens ()
-        tx = await ItokenLINK.connect(buyerLINK).approve(market.address, amountAproxToken);
-        tx = await tx.wait();
-
-        // Getting the creator LINK balance before selling the offer
-        const balanceLINKcreator = await ItokenLINK.balanceOf(await ownerToken1155.getAddress());
-
-        // Buy the 2nd offer with LINK.. (offerId: 1, method: 2 == DAI) and checking the event emitted
-        await expect(tx = await market.connect(buyerLINK).buyTokenOffer(1,2))
-            .to.emit(market, 'OfferSold')
-            .withArgs(
-                1, 
-                await buyerLINK.getAddress(), 
-                token1155.address, 
-                token1155.id, 
-                await time.latestBlock()
+        it("Should not allow to buy an offer that has not been activated", async ()=>{
+            // Create offer into the market
+            let tx = await market.connect(ownerToken1155).createOffer(
+                token1155.address,
+                token1155.id,
+                10,
+                (time.duration.hours(1)).toNumber(),
+                100
             );
-        tx = await tx.wait();
+            tx = await tx.wait();
 
-        expect(5).to.equal(await Itoken1155.balanceOf(await buyerLINK.getAddress(), token1155.id));
-        expect(10).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
-        expect(await ItokenLINK.balanceOf(await ownerToken1155.getAddress())).to.be.above(balanceLINKcreator);
+            // Trying to buy the offer. (offerId: 0, method: 0 == EHT)
+            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+            .to.be.revertedWith("The offer is not available");
+            
+        });
     });
-    
+
+    describe("Conditions of offers already created", () =>{
+        beforeEach(async ()=>{
+            // Deploying
+            FactoryContract = await ethers.getContractFactory("Market");
+            market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
+
+            // Create offer into the market
+            let tx = await market.connect(ownerToken1155).createOffer(
+                token1155.address,
+                token1155.id,
+                10,
+                (time.duration.hours(1)).toNumber(),
+                100
+            );
+            tx = await tx.wait();
+
+            // Aproved the market to manage the tokens
+            tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+                market.address,
+                true
+            );
+            tx = await tx.wait();
+            
+            // Activated the offer in the market
+            tx = await market.connect(ownerToken1155).activateOffer(0);
+            tx = await tx.wait();
+        });
+
+        it("Should not allow to buy an offer cancelled", async ()=>{  
+            // Cancelling the offer
+            let tx = await market.connect(ownerToken1155).cancelOffer(0);
+            tx = await tx.wait();
+            
+            // Trying to buy the offer
+            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+                .to.be.revertedWith("The offer is not available");
+        });
+
+        it("Should not allow to buy an offer expired", async ()=>{  
+            // Increasing the time
+            await time.increase(time.duration.hours(1));
+            
+            // Trying to buy the offer
+            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+                .to.be.revertedWith("The offer has expired");
+        });
+
+        it("Should be throw an error when buy without send enough Ether", async ()=>{  
+            // Trying to buy the offer with 100 wei
+            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: 1}))
+                .to.be.revertedWith("Not enough ether sent");
+        });
+
+        it("Should be throw an error when buy without enough Token", async ()=>{  
+            // Approve the market to spen low amount of the ERC20 tokens to pay 
+            tx = await ItokenDAI.connect(buyerDAI).approve(market.address, 10);
+            tx = await tx.wait();
+            
+            // Trying to buy the offer with low amount of tokens
+            await expect(market.connect(account1).buyTokenOffer(0, 1))
+                .to.be.revertedWith("Not approved enough tokens to spend");
+        });
+
+        it("Should be throw an error when trying to active an offer that is already active", async ()=>{  
+            // Trying to activated the offer in the market
+            await expect(market.connect(ownerToken1155).activateOffer(0))
+                .to.be.revertedWith("The offer is not pending");
+        });
+
+        it("Should throw an error when trying to activate an offer that is already canceled", async ()=>{  
+            // Cancelling the offer
+            let tx = await market.connect(ownerToken1155).cancelOffer(0);
+            tx = await tx.wait();
+
+            // Trying to activated the offer in the market
+            await expect(market.connect(ownerToken1155).activateOffer(0))
+                .to.be.revertedWith("The offer is not pending");
+        });
+
+        it("Should not allow cancel an offer that is already cancel", async ()=>{  
+            // Cancelling the offer
+            let tx = await market.connect(ownerToken1155).cancelOffer(0);
+            tx = await tx.wait();
+
+            // Trying to cancel again the offer in the market
+            await expect(market.connect(ownerToken1155).cancelOffer(0))
+                .to.be.revertedWith("The offer is already canceled or sold");
+        });
+
+        it("Should not allow cancel an offer that is already selled", async ()=>{  
+            // Buy the offer (to set it as SOLD)
+            let tx = await market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")})
+            tx = await tx.wait();
+
+            // Trying to cancel again the offer in the market
+            await expect(market.connect(ownerToken1155).cancelOffer(0))
+            .to.be.revertedWith("The offer is already canceled or sold");
+        });
+    });
 });
-*/
+
 /*      TIME MANIPULATION Examples
       let block1 = await time.latestBlock();
       let time1 = await time.latest();
