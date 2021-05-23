@@ -507,3 +507,14 @@ describe("Market NFT - Requirements management of the offers", ()=>{
         });
     });
 });
+after(async ()=>{
+    await hre.network.provider.request({
+        method: "hardhat_reset",
+        params: [{
+            forking: {
+            jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
+            blockNumber: 12481130
+            }
+        }]
+    });
+});
