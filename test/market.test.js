@@ -507,12 +507,3 @@ describe("Market NFT - Requirements management of the offers", ()=>{
         });
     });
 });
-
-/*      TIME MANIPULATION Examples
-      let block1 = await time.latestBlock();
-      let time1 = await time.latest();
-      console.log(block1.toString());
-      console.log(time1.toString());
-
-      time.increase(time.duration.hours(1));
-*/
