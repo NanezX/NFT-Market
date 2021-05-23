@@ -17,7 +17,7 @@ const token1155={
     id: "65678"
 }
 
-let FactoryContract, market, Itoken1155, ItokenDAI;
+let FactoryContract, market, Itoken1155, ItokenDAI, ItokenLINK;
 let ownerMarket, recipient, account1, ownerToken1155, buyerDAI, buyerLINK;
 
 before(async ()=>{
