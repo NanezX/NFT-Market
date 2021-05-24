@@ -217,7 +217,7 @@ describe("Market NFT V2", ()=>{
             // Getting the creator ETH balance before selling the offer
             const balanceETHBeforeSelled = await ownerToken1155.getBalance();
 
-            // Buy the offer with Version 2. (offerId: 1, method: 0 == EHT)
+            // Buy the offer with Version 2. (offerId: 0, method: 0 == EHT)
             await expect(tx = await marketV2.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
                 .to.emit(marketV2, 'OfferSold')
                 .withArgs(
@@ -350,7 +350,58 @@ describe("Market NFT V2", ()=>{
         });
 
         it("Must create an offer of the ERC721 and buy with UNI", async ()=>{
+            // Create offer in Market V2
+            await expect(tx = await marketV2.connect(ownerToken721).createOffer(
+                token721.address,
+                token721.id2, 
+                1,  // 1 because it is 721 (but this does not matter, the market is counting on that, so you can put any number)
+                (time.duration.hours(1)).toNumber(),
+                200,
+                0  // Type token 0 == Protocol ERC721
+                )
+            )
+                .to.emit(marketV2, 'OfferCreated')
+                .withArgs(
+                    3, 
+                    await ownerToken721.getAddress(),
+                    token721.address, 
+                    token721.id2,
+                    await time.latestBlock(),
+                    0 // Type token 0 == Protocol ERC721
+                );
+            tx = await tx.wait();
 
+            // Approve the market to manage tokens of the creator.
+            tx = await Itoken721.connect(ownerToken721).approve(
+                marketV2.address,
+                token721.id2
+            );
+            tx = await tx.wait();
+
+            // Activated the offer in the market V2
+            tx = await marketV2.connect(ownerToken721).activateOffer(3);
+            tx = await tx.wait();
+
+            // Getting the creator UNI balance before selling the offer
+            const balanceUNIBeforeSelled = await ItokenUNI.balanceOf(await ownerToken1155.getAddress());
+
+            // Getting the aprox token amount to reach the price of offer 3 with method 3 (UNI)
+            let amountAproxToken = await marketV2.getPrice(3, 3);
+
+            // Setting an margin of 2% to the price
+            amountAproxToken = (amountAproxToken.mul(102)).div(100);
+
+            // Approve the market to manage the ERC20 tokens ()
+            tx = await ItokenUNI.connect(buyerUNI).approve(marketV2.address, amountAproxToken);
+            tx = await tx.wait();
+
+            // Buy the offer with Version 2. (offerId: 3, method: 3 == UNI)
+            tx = await marketV2.connect(buyerUNI).buyTokenOffer(3, 3);
+            tx = await tx.wait();
+
+            expect(await buyerUNI.getAddress()).to.equal(await Itoken721.ownerOf(token721.id2));
+            expect(1).to.equal(await Itoken721.balanceOf(await buyerUNI.getAddress()));
+            expect(await ItokenUNI.balanceOf(await ownerToken721.getAddress())).to.be.above(balanceUNIBeforeSelled);
         });
     });
 });
