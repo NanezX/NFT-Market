@@ -58,6 +58,11 @@ contract MarketV2 is OwnableUpgradeable{
     // To save the type the token (ERC721 or ERC1155) in a KEY(ID) offer
     mapping(uint => uint8) offerType; 
     uint quantityPaymentMethods;
+    event NewPaymentMethod (
+        uint id,
+        address aggregator,
+        address token
+    );
 
     modifier checkOffer(uint id){
         require(offers[id].state == STATE.ACTIVE, "The offer is not available");
@@ -191,6 +196,11 @@ contract MarketV2 is OwnableUpgradeable{
         );
         paymentMethods[quantityPaymentMethods + 3] = PaymentMethod(
             AggregatorV3Interface(aggregatorAddress),
+            tokenAdress
+        );
+        emit NewPaymentMethod(
+            quantityPaymentMethods+3, 
+            aggregatorAddress, 
             tokenAdress
         );
         quantityPaymentMethods++;
