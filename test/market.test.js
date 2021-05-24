@@ -1,521 +1,521 @@
-const { expect } = require("chai");
-const { ethers, upgrades} = require("hardhat");
-const fetch = require("node-fetch");
-const hre = require("hardhat");
-const {time} = require("@openzeppelin/test-helpers");
+// const { expect } = require("chai");
+// const { ethers, upgrades} = require("hardhat");
+// const fetch = require("node-fetch");
+// const hre = require("hardhat");
+// const {time} = require("@openzeppelin/test-helpers");
 
-// Accounts
-const ownerToken_1155 = "0x5a098be98f6715782ee73dc9c5b9574bd4c130c9";
-const buyer_DAI = "0x41428daf581f6dd447c6586863d17b3c8fc6f936";
-const buyer_LINK = "0x3fcac584d0b71a9564602c1f0288ec1c0d9846cf";
+// // Accounts
+// const ownerToken_1155 = "0x5a098be98f6715782ee73dc9c5b9574bd4c130c9";
+// const buyer_DAI = "0x41428daf581f6dd447c6586863d17b3c8fc6f936";
+// const buyer_LINK = "0x3fcac584d0b71a9564602c1f0288ec1c0d9846cf";
 
-// Token addresses
-const DAI_ADDRESS = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
-const LINK_ADDRESS = "0x514910771AF9Ca656af840dff83E8264EcF986CA";
-const token1155={
-    address: "0xd07dc4262BCDbf85190C01c996b4C06a461d2430",
-    id: "65678"
-}
+// // Token addresses
+// const DAI_ADDRESS = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
+// const LINK_ADDRESS = "0x514910771AF9Ca656af840dff83E8264EcF986CA";
+// const token1155={
+//     address: "0xd07dc4262BCDbf85190C01c996b4C06a461d2430",
+//     id: "65678"
+// }
 
-let FactoryContract, market, Itoken1155, ItokenDAI, ItokenLINK;
-let ownerMarket, recipient, account1, ownerToken1155, buyerDAI, buyerLINK;
+// let FactoryContract, market, Itoken1155, ItokenDAI, ItokenLINK;
+// let ownerMarket, recipient, account1, ownerToken1155, buyerDAI, buyerLINK;
 
-before(async ()=>{
-    // Getting hardhat accounts
-    [ownerMarket, recipient, account1] = await ethers.getSigners();
+// before(async ()=>{
+//     // Getting hardhat accounts
+//     [ownerMarket, recipient, account1] = await ethers.getSigners();
 
-    // Setting the custom accounts
-    // 1. Owner of Token1155
-    await hre.network.provider.request({
-        method: "hardhat_impersonateAccount",
-        params: [ownerToken_1155]
-    });
-    ownerToken1155 = await ethers.provider.getSigner(ownerToken_1155);
+//     // Setting the custom accounts
+//     // 1. Owner of Token1155
+//     await hre.network.provider.request({
+//         method: "hardhat_impersonateAccount",
+//         params: [ownerToken_1155]
+//     });
+//     ownerToken1155 = await ethers.provider.getSigner(ownerToken_1155);
 
-    // 2. Buyer with DAI (and sending ether to the account)
-    await hre.network.provider.request({
-        method: "hardhat_impersonateAccount",
-        params: [buyer_DAI]
-    });
-    await account1.sendTransaction({
-        to: buyer_DAI,
-        value: ethers.utils.parseEther('10.0'),
-    });
-    buyerDAI = await ethers.provider.getSigner(buyer_DAI);
+//     // 2. Buyer with DAI (and sending ether to the account)
+//     await hre.network.provider.request({
+//         method: "hardhat_impersonateAccount",
+//         params: [buyer_DAI]
+//     });
+//     await account1.sendTransaction({
+//         to: buyer_DAI,
+//         value: ethers.utils.parseEther('10.0'),
+//     });
+//     buyerDAI = await ethers.provider.getSigner(buyer_DAI);
 
-    // 3. Buyer with LINK (and sending ether to the account)
-    await hre.network.provider.request({
-        method: "hardhat_impersonateAccount",
-        params: [buyer_LINK]
-    });
-    await account1.sendTransaction({
-        to: buyer_LINK,
-        value: ethers.utils.parseEther('10.0'),
-    });
-    buyerLINK = await ethers.provider.getSigner(buyer_LINK);
+//     // 3. Buyer with LINK (and sending ether to the account)
+//     await hre.network.provider.request({
+//         method: "hardhat_impersonateAccount",
+//         params: [buyer_LINK]
+//     });
+//     await account1.sendTransaction({
+//         to: buyer_LINK,
+//         value: ethers.utils.parseEther('10.0'),
+//     });
+//     buyerLINK = await ethers.provider.getSigner(buyer_LINK);
 
-    // Tokens
-    Itoken1155 = await ethers.getContractAt("IERC1155Upgradeable", token1155.address);
-    ItokenDAI = await ethers.getContractAt("IERC20", DAI_ADDRESS);
-    ItokenLINK = await ethers.getContractAt("IERC20", LINK_ADDRESS);
-});
-describe("Market NFT - Basics", ()=>{
-    beforeEach(async ()=>{
-        // Deploying
-        FactoryContract = await ethers.getContractFactory("Market");
-        market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
-    });
+//     // Tokens
+//     Itoken1155 = await ethers.getContractAt("IERC1155Upgradeable", token1155.address);
+//     ItokenDAI = await ethers.getContractAt("IERC20", DAI_ADDRESS);
+//     ItokenLINK = await ethers.getContractAt("IERC20", LINK_ADDRESS);
+// });
+// describe("Market NFT - Basics", ()=>{
+//     beforeEach(async ()=>{
+//         // Deploying
+//         FactoryContract = await ethers.getContractFactory("Market");
+//         market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
+//     });
 
-    it("Must be return the correct owner, fee and recipient", async ()=>{
-        const _owner = await market.owner();
-        const _fee = await market.getFee();
-        const _recipient = await market.getRecipient();
+//     it("Must be return the correct owner, fee and recipient", async ()=>{
+//         const _owner = await market.owner();
+//         const _fee = await market.getFee();
+//         const _recipient = await market.getRecipient();
 
-        expect(_fee).to.equal(100);
-        expect(_recipient).to.equal(recipient.address);
-        expect(_owner).to.equal(ownerMarket.address);
-    });
+//         expect(_fee).to.equal(100);
+//         expect(_recipient).to.equal(recipient.address);
+//         expect(_owner).to.equal(ownerMarket.address);
+//     });
 
-    it("Must be change the fee and recipient correctly", async()=>{
-        // Changing the fee
-        let tx = await market.connect(ownerMarket).setFee(200);
-        tx = await tx.wait();
-        const _fee1 = await market.getFee();
+//     it("Must be change the fee and recipient correctly", async()=>{
+//         // Changing the fee
+//         let tx = await market.connect(ownerMarket).setFee(200);
+//         tx = await tx.wait();
+//         const _fee1 = await market.getFee();
 
-        // Changing the recipient
-        tx = await market.connect(ownerMarket).setRecipient(account1.address);
-        tx = await tx.wait();
-        const _newRecipient = await market.getRecipient();
+//         // Changing the recipient
+//         tx = await market.connect(ownerMarket).setRecipient(account1.address);
+//         tx = await tx.wait();
+//         const _newRecipient = await market.getRecipient();
 
-        expect(_fee1).to.equal(200);
-        expect(_newRecipient).to.equal(account1.address);
-    });
+//         expect(_fee1).to.equal(200);
+//         expect(_newRecipient).to.equal(account1.address);
+//     });
 
-    it("Must be create an offer completely", async ()=>{
-        // Create offer into the market and check the event emitted
-        let tx;
-        await expect(
-            tx = await market.connect(ownerToken1155).createOffer(
-                token1155.address,
-                token1155.id,
-                10,
-                (time.duration.hours(1)).toNumber(),
-                100
-            )
-        )
-            .to.emit(market, 'OfferCreated')
-            .withArgs(
-                0, 
-                await ownerToken1155.getAddress(),
-                token1155.address, 
-                token1155.id,
-                await time.latestBlock()
-            );
-        tx = await tx.wait();
+//     it("Must be create an offer completely", async ()=>{
+//         // Create offer into the market and check the event emitted
+//         let tx;
+//         await expect(
+//             tx = await market.connect(ownerToken1155).createOffer(
+//                 token1155.address,
+//                 token1155.id,
+//                 10,
+//                 (time.duration.hours(1)).toNumber(),
+//                 100
+//             )
+//         )
+//             .to.emit(market, 'OfferCreated')
+//             .withArgs(
+//                 0, 
+//                 await ownerToken1155.getAddress(),
+//                 token1155.address, 
+//                 token1155.id,
+//                 await time.latestBlock()
+//             );
+//         tx = await tx.wait();
 
-        // Check the offer state (PENDING == 3)
-        let [,,,,,,state] = await market.getOffer(0);
-        expect(3).to.equal(state);
+//         // Check the offer state (PENDING == 3)
+//         let [,,,,,,state] = await market.getOffer(0);
+//         expect(3).to.equal(state);
 
-        // Approve the market to manage the offered tokens.
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
-        // Activated the offer in the market
-        tx = await market.connect(ownerToken1155).activateOffer(0);
-        tx = await tx.wait();
+//         // Approve the market to manage the offered tokens.
+//         tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+//             market.address,
+//             true
+//         );
+//         tx = await tx.wait();
+//         // Activated the offer in the market
+//         tx = await market.connect(ownerToken1155).activateOffer(0);
+//         tx = await tx.wait();
 
-        // Check if is approved and if offer state is activated
-        const approved = await Itoken1155.isApprovedForAll(await ownerToken1155.getAddress(), market.address);
-        expect(true).to.equal(approved);
-        // (ACTIVE == 1)
-        [,,,,,,state] = await market.getOffer(0);
-        expect(1).to.equal(state);
-    });
+//         // Check if is approved and if offer state is activated
+//         const approved = await Itoken1155.isApprovedForAll(await ownerToken1155.getAddress(), market.address);
+//         expect(true).to.equal(approved);
+//         // (ACTIVE == 1)
+//         [,,,,,,state] = await market.getOffer(0);
+//         expect(1).to.equal(state);
+//     });
 
-    it("Must be cancel the offers", async ()=>{
-        // Create two offers into the market and check the event emitted
-        let tx;
-        for (let i=0; i<2; i++){
-            tx = await market.connect(ownerToken1155).createOffer(
-                token1155.address,
-                token1155.id,
-                10,
-                (time.duration.hours(1)).toNumber(),
-                100
-            );
-            tx = await tx.wait();
-        }
+//     it("Must be cancel the offers", async ()=>{
+//         // Create two offers into the market and check the event emitted
+//         let tx;
+//         for (let i=0; i<2; i++){
+//             tx = await market.connect(ownerToken1155).createOffer(
+//                 token1155.address,
+//                 token1155.id,
+//                 10,
+//                 (time.duration.hours(1)).toNumber(),
+//                 100
+//             );
+//             tx = await tx.wait();
+//         }
 
-        // Approve the market to manage the offered tokens.
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
+//         // Approve the market to manage the offered tokens.
+//         tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+//             market.address,
+//             true
+//         );
+//         tx = await tx.wait();
 
-        // Activated the ONLY the 1st offer in the market
-        tx = await market.connect(ownerToken1155).activateOffer(0);
-        tx = await tx.wait();
+//         // Activated the ONLY the 1st offer in the market
+//         tx = await market.connect(ownerToken1155).activateOffer(0);
+//         tx = await tx.wait();
 
-        // Cancel both offers
-        for(let i=0; i<2; i++){
-            await expect(tx = await market.connect(ownerToken1155).cancelOffer(i))
-                .to.emit(market, 'OfferCancelled')
-                .withArgs(
-                    i, // Offer ID
-                    await ownerToken1155.getAddress(), // Address of the creator of the offer
-                    token1155.address, // Token address
-                    token1155.id, // Token ID
-                    await time.latestBlock() // Block.time when was cancelled
-                );
-            tx = await tx.wait();
+//         // Cancel both offers
+//         for(let i=0; i<2; i++){
+//             await expect(tx = await market.connect(ownerToken1155).cancelOffer(i))
+//                 .to.emit(market, 'OfferCancelled')
+//                 .withArgs(
+//                     i, // Offer ID
+//                     await ownerToken1155.getAddress(), // Address of the creator of the offer
+//                     token1155.address, // Token address
+//                     token1155.id, // Token ID
+//                     await time.latestBlock() // Block.time when was cancelled
+//                 );
+//             tx = await tx.wait();
 
-            // Check the offer state (CANCELLED == 0)
-            [,,,,,,state] = await market.getOffer(i); // Get state of the Offer with ID: i
-            expect(0).to.equal(state);
-        }
+//             // Check the offer state (CANCELLED == 0)
+//             [,,,,,,state] = await market.getOffer(i); // Get state of the Offer with ID: i
+//             expect(0).to.equal(state);
+//         }
 
-    });
+//     });
     
-});
+// });
 
-describe("Market NFT - Trades", ()=>{
-    beforeEach(async ()=>{
-        // Deploying
-        FactoryContract = await ethers.getContractFactory("Market");
-        market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
-    });
+// describe("Market NFT - Trades", ()=>{
+//     beforeEach(async ()=>{
+//         // Deploying
+//         FactoryContract = await ethers.getContractFactory("Market");
+//         market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
+//     });
 
-    it("Must buy the offer with Ether", async ()=>{
-        // Create offer into the market
-        let tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            10,
-            (time.duration.hours(1)).toNumber(),
-            100
-        );
-        tx = await tx.wait();
+//     it("Must buy the offer with Ether", async ()=>{
+//         // Create offer into the market
+//         let tx = await market.connect(ownerToken1155).createOffer(
+//             token1155.address,
+//             token1155.id,
+//             10,
+//             (time.duration.hours(1)).toNumber(),
+//             100
+//         );
+//         tx = await tx.wait();
 
-        // Approve the market to manage the offered tokens.
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
+//         // Approve the market to manage the offered tokens.
+//         tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+//             market.address,
+//             true
+//         );
+//         tx = await tx.wait();
 
-        // Activated the offer in the market
-        tx = await market.connect(ownerToken1155).activateOffer(0);
-        tx = await tx.wait();
+//         // Activated the offer in the market
+//         tx = await market.connect(ownerToken1155).activateOffer(0);
+//         tx = await tx.wait();
 
-        // Getting the creator ETH balance before selling the offer
-        const balanceETHBeforeSelled = await ownerToken1155.getBalance();
+//         // Getting the creator ETH balance before selling the offer
+//         const balanceETHBeforeSelled = await ownerToken1155.getBalance();
 
-        // Buy the offer. (offerId: 0, method: 0 == EHT) and checking the event emitted
-        await expect(tx = await market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
-            .to.emit(market, 'OfferSold')
-            .withArgs(
-                0, 
-                await account1.getAddress(),
-                token1155.address, 
-                token1155.id, 
-                await time.latestBlock()
-            );
-        tx = await tx.wait();
+//         // Buy the offer. (offerId: 0, method: 0 == EHT) and checking the event emitted
+//         await expect(tx = await market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+//             .to.emit(market, 'OfferSold')
+//             .withArgs(
+//                 0, 
+//                 await account1.getAddress(),
+//                 token1155.address, 
+//                 token1155.id, 
+//                 await time.latestBlock()
+//             );
+//         tx = await tx.wait();
 
-        expect(10).to.equal(await Itoken1155.balanceOf(await account1.getAddress(), token1155.id));
-        expect(20).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
-        expect(await ownerToken1155.getBalance()).to.be.above(balanceETHBeforeSelled);
-    });
+//         expect(10).to.equal(await Itoken1155.balanceOf(await account1.getAddress(), token1155.id));
+//         expect(20).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
+//         expect(await ownerToken1155.getBalance()).to.be.above(balanceETHBeforeSelled);
+//     });
 
-    it("Must buy the offer with DAI Token", async ()=>{
-        // Create offer into the market
-        let tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            5,
-            (time.duration.hours(1)).toNumber(),
-            50
-        );
-        tx = await tx.wait();
+//     it("Must buy the offer with DAI Token", async ()=>{
+//         // Create offer into the market
+//         let tx = await market.connect(ownerToken1155).createOffer(
+//             token1155.address,
+//             token1155.id,
+//             5,
+//             (time.duration.hours(1)).toNumber(),
+//             50
+//         );
+//         tx = await tx.wait();
 
-        // Aproved the market to manage the tokens
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
+//         // Aproved the market to manage the tokens
+//         tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+//             market.address,
+//             true
+//         );
+//         tx = await tx.wait();
         
-        // Activated the offer in the market
-        tx = await market.connect(ownerToken1155).activateOffer(0);
-        tx = await tx.wait();
+//         // Activated the offer in the market
+//         tx = await market.connect(ownerToken1155).activateOffer(0);
+//         tx = await tx.wait();
 
-        // Getting the aprox token amount to reach the price of offer 0 with method 1 (DAI)
-        let amountAproxToken = await market.getPrice(0, 1);
+//         // Getting the aprox token amount to reach the price of offer 0 with method 1 (DAI)
+//         let amountAproxToken = await market.getPrice(0, 1);
 
-        // Setting an margin of 2% to the price
-        amountAproxToken = (amountAproxToken.mul(102)).div(100);
+//         // Setting an margin of 2% to the price
+//         amountAproxToken = (amountAproxToken.mul(102)).div(100);
 
-        // Approve the market to manage the ERC20 tokens ()
-        tx = await ItokenDAI.connect(buyerDAI).approve(market.address, amountAproxToken);
-        tx = await tx.wait();
+//         // Approve the market to manage the ERC20 tokens ()
+//         tx = await ItokenDAI.connect(buyerDAI).approve(market.address, amountAproxToken);
+//         tx = await tx.wait();
 
-        // Getting the creator DAI balance before selling the offer
-        const balanceDAIcreator = await ItokenDAI.balanceOf(await ownerToken1155.getAddress());
+//         // Getting the creator DAI balance before selling the offer
+//         const balanceDAIcreator = await ItokenDAI.balanceOf(await ownerToken1155.getAddress());
 
-        // Buy the offer. (offerId: 0, method: 1 == DAI) and checking the event emitted
-        await expect(tx = await market.connect(buyerDAI).buyTokenOffer(0,1))
-            .to.emit(market, 'OfferSold')
-            .withArgs(
-                0, 
-                await buyerDAI.getAddress(), 
-                token1155.address, 
-                token1155.id, 
-                await time.latestBlock()
-            );
-        tx = await tx.wait();
+//         // Buy the offer. (offerId: 0, method: 1 == DAI) and checking the event emitted
+//         await expect(tx = await market.connect(buyerDAI).buyTokenOffer(0,1))
+//             .to.emit(market, 'OfferSold')
+//             .withArgs(
+//                 0, 
+//                 await buyerDAI.getAddress(), 
+//                 token1155.address, 
+//                 token1155.id, 
+//                 await time.latestBlock()
+//             );
+//         tx = await tx.wait();
 
-        expect(5).to.equal(await Itoken1155.balanceOf(await buyerDAI.getAddress(), token1155.id));
-        expect(15).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
-        expect(await ItokenDAI.balanceOf(await ownerToken1155.getAddress())).to.be.above(balanceDAIcreator);
-    });
+//         expect(5).to.equal(await Itoken1155.balanceOf(await buyerDAI.getAddress(), token1155.id));
+//         expect(15).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
+//         expect(await ItokenDAI.balanceOf(await ownerToken1155.getAddress())).to.be.above(balanceDAIcreator);
+//     });
 
-    it("Must create two offers and only buy the 2nd offer with LINK Token", async ()=>{
-        // Create the 1st offer (10 tokens ERC1155)
-        let tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            10,
-            (time.duration.hours(1)).toNumber(),
-            100
-        );
-        tx = await tx.wait();
+//     it("Must create two offers and only buy the 2nd offer with LINK Token", async ()=>{
+//         // Create the 1st offer (10 tokens ERC1155)
+//         let tx = await market.connect(ownerToken1155).createOffer(
+//             token1155.address,
+//             token1155.id,
+//             10,
+//             (time.duration.hours(1)).toNumber(),
+//             100
+//         );
+//         tx = await tx.wait();
 
-        // Create the 2nd offer (5 tokens ERC1155)
-        tx = await market.connect(ownerToken1155).createOffer(
-            token1155.address,
-            token1155.id,
-            5,
-            (time.duration.hours(1)).toNumber(),
-            50
-        );
-        tx = await tx.wait();
+//         // Create the 2nd offer (5 tokens ERC1155)
+//         tx = await market.connect(ownerToken1155).createOffer(
+//             token1155.address,
+//             token1155.id,
+//             5,
+//             (time.duration.hours(1)).toNumber(),
+//             50
+//         );
+//         tx = await tx.wait();
 
-        // Aproved the market to manage the tokens
-        tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-            market.address,
-            true
-        );
-        tx = await tx.wait();
+//         // Aproved the market to manage the tokens
+//         tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+//             market.address,
+//             true
+//         );
+//         tx = await tx.wait();
 
-        // Activating the offer 0 and 1 in the market
-        for (let i=0; i<2; i++){
-            tx = await market.connect(ownerToken1155).activateOffer(i);
-            tx = await tx.wait();
-        }
+//         // Activating the offer 0 and 1 in the market
+//         for (let i=0; i<2; i++){
+//             tx = await market.connect(ownerToken1155).activateOffer(i);
+//             tx = await tx.wait();
+//         }
 
-        // Getting the aprox token amount to reach the price of 2nd offer (ID:1) with method 2 (LINK)
-        let amountAproxToken = await market.getPrice(1, 2);
+//         // Getting the aprox token amount to reach the price of 2nd offer (ID:1) with method 2 (LINK)
+//         let amountAproxToken = await market.getPrice(1, 2);
 
-        // Setting an margin of 2% to the price
-        amountAproxToken = (amountAproxToken.mul(102)).div(100);
+//         // Setting an margin of 2% to the price
+//         amountAproxToken = (amountAproxToken.mul(102)).div(100);
 
-        // Approve the market to manage the ERC20 tokens ()
-        tx = await ItokenLINK.connect(buyerLINK).approve(market.address, amountAproxToken);
-        tx = await tx.wait();
+//         // Approve the market to manage the ERC20 tokens ()
+//         tx = await ItokenLINK.connect(buyerLINK).approve(market.address, amountAproxToken);
+//         tx = await tx.wait();
 
-        // Getting the creator LINK balance before selling the offer
-        const balanceLINKcreator = await ItokenLINK.balanceOf(await ownerToken1155.getAddress());
+//         // Getting the creator LINK balance before selling the offer
+//         const balanceLINKcreator = await ItokenLINK.balanceOf(await ownerToken1155.getAddress());
 
-        // Buy the 2nd offer with LINK.. (offerId: 1, method: 2 == DAI) and checking the event emitted
-        await expect(tx = await market.connect(buyerLINK).buyTokenOffer(1,2))
-            .to.emit(market, 'OfferSold')
-            .withArgs(
-                1, 
-                await buyerLINK.getAddress(), 
-                token1155.address, 
-                token1155.id, 
-                await time.latestBlock()
-            );
-        tx = await tx.wait();
+//         // Buy the 2nd offer with LINK.. (offerId: 1, method: 2 == DAI) and checking the event emitted
+//         await expect(tx = await market.connect(buyerLINK).buyTokenOffer(1,2))
+//             .to.emit(market, 'OfferSold')
+//             .withArgs(
+//                 1, 
+//                 await buyerLINK.getAddress(), 
+//                 token1155.address, 
+//                 token1155.id, 
+//                 await time.latestBlock()
+//             );
+//         tx = await tx.wait();
 
-        expect(5).to.equal(await Itoken1155.balanceOf(await buyerLINK.getAddress(), token1155.id));
-        expect(10).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
-        expect(await ItokenLINK.balanceOf(await ownerToken1155.getAddress())).to.be.above(balanceLINKcreator);
-    });
+//         expect(5).to.equal(await Itoken1155.balanceOf(await buyerLINK.getAddress(), token1155.id));
+//         expect(10).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
+//         expect(await ItokenLINK.balanceOf(await ownerToken1155.getAddress())).to.be.above(balanceLINKcreator);
+//     });
     
-});
+// });
 
-describe("Market NFT - Requirements management of the offers", ()=>{
+// describe("Market NFT - Requirements management of the offers", ()=>{
 
-    describe("Conditions when creating offers", ()=>{
-        beforeEach(async ()=>{
-            // Deploying
-            FactoryContract = await ethers.getContractFactory("Market");
-            market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
-        });
+//     describe("Conditions when creating offers", ()=>{
+//         beforeEach(async ()=>{
+//             // Deploying
+//             FactoryContract = await ethers.getContractFactory("Market");
+//             market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
+//         });
 
-        it("Should not create the offer without enough tokens to sell", async ()=>{
-            // Tying to create an offer without enough token
-            let tx;
-            await expect(
-                market.connect(ownerToken1155).createOffer(
-                    token1155.address, 
-                    token1155.id, 
-                    50, // Offer with 50 tokens 1155 that the account does not have
-                    (time.duration.hours(1)).toNumber(), 
-                    100
-                )
-            )
-            .to.be.revertedWith("Do not have enough tokens");
-        });
+//         it("Should not create the offer without enough tokens to sell", async ()=>{
+//             // Tying to create an offer without enough token
+//             let tx;
+//             await expect(
+//                 market.connect(ownerToken1155).createOffer(
+//                     token1155.address, 
+//                     token1155.id, 
+//                     50, // Offer with 50 tokens 1155 that the account does not have
+//                     (time.duration.hours(1)).toNumber(), 
+//                     100
+//                 )
+//             )
+//             .to.be.revertedWith("Do not have enough tokens");
+//         });
 
-        it("Should not allow activating the offer without the tokens approval", async ()=>{
-            // Create offer into the market
-            let tx = await market.connect(ownerToken1155).createOffer(
-                token1155.address,
-                token1155.id,
-                10,
-                (time.duration.hours(1)).toNumber(),
-                100
-            );
-            tx = await tx.wait();
+//         it("Should not allow activating the offer without the tokens approval", async ()=>{
+//             // Create offer into the market
+//             let tx = await market.connect(ownerToken1155).createOffer(
+//                 token1155.address,
+//                 token1155.id,
+//                 10,
+//                 (time.duration.hours(1)).toNumber(),
+//                 100
+//             );
+//             tx = await tx.wait();
 
-            // Activate the offer on the market (without any token approval)
-            await expect(market.connect(ownerToken1155).activateOffer(0))
-                .to.be.revertedWith("The market is not approved");
-        });
+//             // Activate the offer on the market (without any token approval)
+//             await expect(market.connect(ownerToken1155).activateOffer(0))
+//                 .to.be.revertedWith("The market is not approved");
+//         });
 
-        it("Should not allow to buy an offer that has not been activated", async ()=>{
-            // Create offer into the market
-            let tx = await market.connect(ownerToken1155).createOffer(
-                token1155.address,
-                token1155.id,
-                10,
-                (time.duration.hours(1)).toNumber(),
-                100
-            );
-            tx = await tx.wait();
+//         it("Should not allow to buy an offer that has not been activated", async ()=>{
+//             // Create offer into the market
+//             let tx = await market.connect(ownerToken1155).createOffer(
+//                 token1155.address,
+//                 token1155.id,
+//                 10,
+//                 (time.duration.hours(1)).toNumber(),
+//                 100
+//             );
+//             tx = await tx.wait();
 
-            // Trying to buy the offer. (offerId: 0, method: 0 == EHT)
-            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
-            .to.be.revertedWith("The offer is not available");
+//             // Trying to buy the offer. (offerId: 0, method: 0 == EHT)
+//             await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+//             .to.be.revertedWith("The offer is not available");
             
-        });
-    });
+//         });
+//     });
 
-    describe("Conditions of offers already created", () =>{
-        beforeEach(async ()=>{
-            // Deploying
-            FactoryContract = await ethers.getContractFactory("Market");
-            market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
+//     describe("Conditions of offers already created", () =>{
+//         beforeEach(async ()=>{
+//             // Deploying
+//             FactoryContract = await ethers.getContractFactory("Market");
+//             market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
 
-            // Create offer into the market
-            let tx = await market.connect(ownerToken1155).createOffer(
-                token1155.address,
-                token1155.id,
-                10,
-                (time.duration.hours(1)).toNumber(),
-                100
-            );
-            tx = await tx.wait();
+//             // Create offer into the market
+//             let tx = await market.connect(ownerToken1155).createOffer(
+//                 token1155.address,
+//                 token1155.id,
+//                 10,
+//                 (time.duration.hours(1)).toNumber(),
+//                 100
+//             );
+//             tx = await tx.wait();
 
-            // Aproved the market to manage the tokens
-            tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
-                market.address,
-                true
-            );
-            tx = await tx.wait();
+//             // Aproved the market to manage the tokens
+//             tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+//                 market.address,
+//                 true
+//             );
+//             tx = await tx.wait();
             
-            // Activated the offer in the market
-            tx = await market.connect(ownerToken1155).activateOffer(0);
-            tx = await tx.wait();
-        });
+//             // Activated the offer in the market
+//             tx = await market.connect(ownerToken1155).activateOffer(0);
+//             tx = await tx.wait();
+//         });
 
-        it("Should not allow to buy an offer cancelled", async ()=>{  
-            // Cancelling the offer
-            let tx = await market.connect(ownerToken1155).cancelOffer(0);
-            tx = await tx.wait();
+//         it("Should not allow to buy an offer cancelled", async ()=>{  
+//             // Cancelling the offer
+//             let tx = await market.connect(ownerToken1155).cancelOffer(0);
+//             tx = await tx.wait();
             
-            // Trying to buy the offer
-            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
-                .to.be.revertedWith("The offer is not available");
-        });
+//             // Trying to buy the offer
+//             await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+//                 .to.be.revertedWith("The offer is not available");
+//         });
 
-        it("Should not allow to buy an offer expired", async ()=>{  
-            // Increasing the time
-            await time.increase(time.duration.hours(1));
+//         it("Should not allow to buy an offer expired", async ()=>{  
+//             // Increasing the time
+//             await time.increase(time.duration.hours(1));
             
-            // Trying to buy the offer
-            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
-                .to.be.revertedWith("The offer has expired");
-        });
+//             // Trying to buy the offer
+//             await expect(market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+//                 .to.be.revertedWith("The offer has expired");
+//         });
 
-        it("Should be throw an error when buy without send enough Ether", async ()=>{  
-            // Trying to buy the offer with 100 wei
-            await expect(market.connect(account1).buyTokenOffer(0, 0, {value: 1}))
-                .to.be.revertedWith("Not enough ether sent");
-        });
+//         it("Should be throw an error when buy without send enough Ether", async ()=>{  
+//             // Trying to buy the offer with 100 wei
+//             await expect(market.connect(account1).buyTokenOffer(0, 0, {value: 1}))
+//                 .to.be.revertedWith("Not enough ether sent");
+//         });
 
-        it("Should be throw an error when buy without enough Token", async ()=>{  
-            // Approve the market to spen low amount of the ERC20 tokens to pay 
-            tx = await ItokenDAI.connect(buyerDAI).approve(market.address, 10);
-            tx = await tx.wait();
+//         it("Should be throw an error when buy without enough Token", async ()=>{  
+//             // Approve the market to spen low amount of the ERC20 tokens to pay 
+//             tx = await ItokenDAI.connect(buyerDAI).approve(market.address, 10);
+//             tx = await tx.wait();
             
-            // Trying to buy the offer with low amount of tokens
-            await expect(market.connect(account1).buyTokenOffer(0, 1))
-                .to.be.revertedWith("Not approved enough tokens to spend");
-        });
+//             // Trying to buy the offer with low amount of tokens
+//             await expect(market.connect(account1).buyTokenOffer(0, 1))
+//                 .to.be.revertedWith("Not approved enough tokens to spend");
+//         });
 
-        it("Should be throw an error when trying to active an offer that is already active", async ()=>{  
-            // Trying to activated the offer in the market
-            await expect(market.connect(ownerToken1155).activateOffer(0))
-                .to.be.revertedWith("The offer is not pending");
-        });
+//         it("Should be throw an error when trying to active an offer that is already active", async ()=>{  
+//             // Trying to activated the offer in the market
+//             await expect(market.connect(ownerToken1155).activateOffer(0))
+//                 .to.be.revertedWith("The offer is not pending");
+//         });
 
-        it("Should throw an error when trying to activate an offer that is already canceled", async ()=>{  
-            // Cancelling the offer
-            let tx = await market.connect(ownerToken1155).cancelOffer(0);
-            tx = await tx.wait();
+//         it("Should throw an error when trying to activate an offer that is already canceled", async ()=>{  
+//             // Cancelling the offer
+//             let tx = await market.connect(ownerToken1155).cancelOffer(0);
+//             tx = await tx.wait();
 
-            // Trying to activated the offer in the market
-            await expect(market.connect(ownerToken1155).activateOffer(0))
-                .to.be.revertedWith("The offer is not pending");
-        });
+//             // Trying to activated the offer in the market
+//             await expect(market.connect(ownerToken1155).activateOffer(0))
+//                 .to.be.revertedWith("The offer is not pending");
+//         });
 
-        it("Should not allow cancel an offer that is already cancel", async ()=>{  
-            // Cancelling the offer
-            let tx = await market.connect(ownerToken1155).cancelOffer(0);
-            tx = await tx.wait();
+//         it("Should not allow cancel an offer that is already cancel", async ()=>{  
+//             // Cancelling the offer
+//             let tx = await market.connect(ownerToken1155).cancelOffer(0);
+//             tx = await tx.wait();
 
-            // Trying to cancel again the offer in the market
-            await expect(market.connect(ownerToken1155).cancelOffer(0))
-                .to.be.revertedWith("The offer is already canceled or sold");
-        });
+//             // Trying to cancel again the offer in the market
+//             await expect(market.connect(ownerToken1155).cancelOffer(0))
+//                 .to.be.revertedWith("The offer is already canceled or sold");
+//         });
 
-        it("Should not allow cancel an offer that is already selled", async ()=>{  
-            // Buy the offer (to set it as SOLD)
-            let tx = await market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")})
-            tx = await tx.wait();
+//         it("Should not allow cancel an offer that is already selled", async ()=>{  
+//             // Buy the offer (to set it as SOLD)
+//             let tx = await market.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")})
+//             tx = await tx.wait();
 
-            // Trying to cancel again the offer in the market
-            await expect(market.connect(ownerToken1155).cancelOffer(0))
-            .to.be.revertedWith("The offer is already canceled or sold");
-        });
-    });
+//             // Trying to cancel again the offer in the market
+//             await expect(market.connect(ownerToken1155).cancelOffer(0))
+//             .to.be.revertedWith("The offer is already canceled or sold");
+//         });
+//     });
 
-    after(async ()=>{
-        await hre.network.provider.request({
-            method: "hardhat_reset",
-            params: [{
-                forking: {
-                jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
-                blockNumber: 12481130
-                }
-            }]
-        });
-    });
-});
+//     after(async ()=>{
+//         await hre.network.provider.request({
+//             method: "hardhat_reset",
+//             params: [{
+//                 forking: {
+//                 jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
+//                 blockNumber: 12481130
+//                 }
+//             }]
+//         });
+//     });
+// });

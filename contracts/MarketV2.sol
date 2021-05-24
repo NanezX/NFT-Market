@@ -215,12 +215,7 @@ contract MarketV2 is OwnableUpgradeable{
             STATE.PENDING==actualOffer.state,
             "The offer is not pending"
         );
-        if(offerType[offerId]==0){
-            require(
-                address(this) == (IERC721Upgradeable(actualOffer.tokenAddress)).getApproved(actualOffer.tokenId),
-                "The market is not approved"
-            );
-        }else{
+        if(offerType[offerId]==1){
             require(
                 (IERC1155Upgradeable(actualOffer.tokenAddress)).isApprovedForAll(msg.sender, address(this)),
                 "The market is not approved"
@@ -331,7 +326,6 @@ contract MarketV2 is OwnableUpgradeable{
         uint _fee = (amountETH*fee)/10000;
         uint amountToSend = amountETH - _fee;
         Offer memory offer = offers[_offerId];
-
         _transferOffer(offer, offerType[_offerId]);
 
         _sendETH(offer.creator, amountToSend);
@@ -354,7 +348,6 @@ contract MarketV2 is OwnableUpgradeable{
          Offer memory offer = offers[_offerId];
 
         _transferOffer(offer, offerType[_offerId]);
-
 
         _sendToken(token, msg.sender, offer.creator, amountToSend);
         _sendToken(token, msg.sender, recipient, _fee);
@@ -384,7 +377,7 @@ contract MarketV2 is OwnableUpgradeable{
     // Transfer the 721 token of  the offer 
     function _transferToken721(Offer memory _offer) internal{
         IERC721Upgradeable token = IERC721Upgradeable(_offer.tokenAddress);
-        token.safeTransferFrom(_offer.creator, msg.sender, _offer.tokenId);
+        token.transferFrom(_offer.creator, msg.sender, _offer.tokenId);
     }
 
 

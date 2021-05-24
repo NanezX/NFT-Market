@@ -20,19 +20,20 @@ let FactoryContract, market, Itoken1155, ItokenDAI, ItokenLINK;
 let ownerMarket, recipient, account1, ownerToken1155, buyerDAI, buyerLINK;
 
 // ---------- Version 2 -------------
-const buyer_USDT = "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503";
-const USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-const USDT_AGGREGATOR = "0x3E7d1eAB13ad0104d2750B8863b489D65364e32D";
+const buyer_UNI = "0x47173b170c64d16393a52e6c480b3ad8c302ba1e";
+const UNI_ADDRESS = "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984";
+const UNI_AGGREGATOR = "0x553303d460EE0afB37EdFf9bE42922D8FF63220e";
 // CryptoKitties
-const ownerToken_721 = "0x68b42e44079d1d0a4a037e8c6ecd62c48967e69f";
+const ownerToken_721 = "0x68b42e44079D1d0A4a037e8c6eCd62c48967e69f";
 const token721 = {
-    address: "0x06012c8cf97bead5deae237070f9587f8e7a266d", // contract address
+    address: "0x06012c8cf97BEaD5deAe237070F9587f8E7A266d", // contract address
     id1: "842201",
     id2: "1068782",
     id3: "76"
+    // This user have many differents tokens, so here we use this
 }
-let FactoryV2, marketV2, Itoken721, ItokenUSDT;
-let ownerToken721, buyerUSDT;
+let FactoryV2, marketV2, Itoken721, ItokenUNI;
+let ownerToken721, buyerUNI;
 
 describe("Market NFT V2", ()=>{
     before(async ()=>{
@@ -75,14 +76,14 @@ describe("Market NFT V2", ()=>{
         ItokenLINK = await ethers.getContractAt("IERC20", LINK_ADDRESS);
 
         // ---------------- VERSION 2 ------------------------------
-        // 4. Buyer with USDT (and sending ether to the account)
+        // 4. Buyer with UNI (and sending ether to the account)
         await hre.network.provider.request({
             method: "hardhat_impersonateAccount",
-            params: [buyer_USDT]
+            params: [buyer_UNI]
         });
-        buyerUSDT = await ethers.provider.getSigner(buyer_USDT);
+        buyerUNI = await ethers.provider.getSigner(buyer_UNI);
         await account1.sendTransaction({
-            to: buyer_USDT,
+            to: buyer_UNI,
             value: ethers.utils.parseEther('10.0'),
         });
 
@@ -93,10 +94,10 @@ describe("Market NFT V2", ()=>{
         });
         ownerToken721 = await ethers.provider.getSigner(ownerToken_721);
 
-        // USDT Token
-        ItokenUSDT = await ethers.getContractAt("IERC20", USDT_ADDRESS);
+        // UNI Token
+        ItokenUNI = await ethers.getContractAt("IERC20", UNI_ADDRESS);
         // Token ERC721
-        Itoken721 = await ethers.getContractAt("IERC721Upgradeable", token721.address);
+        Itoken721 = await ethers.getContractAt("IERC721", token721.address);
     });
 
     describe("Context: Use Market V1. Then upgrade to Market V2 and use it", ()=>{
@@ -181,25 +182,174 @@ describe("Market NFT V2", ()=>{
             marketV2 = await upgrades.upgradeProxy(market.address, FactoryV2);
         });
         
-        it("Must create an offer of the ERC1155 and buy with USDT", async ()=>{
+        it("Must create an offer of the ERC1155 and buy with Ether", async ()=>{
+            // Create offer in Market V2
+            await expect(tx = await marketV2.connect(ownerToken1155).createOffer(
+                token1155.address,
+                token1155.id,
+                10,
+                (time.duration.hours(1)).toNumber(),
+                100,
+                1 // Type token 1 == Protocol ERC1155
+                )
+            )
+                .to.emit(marketV2, 'OfferCreated')
+                .withArgs(
+                    0, 
+                    await ownerToken1155.getAddress(),
+                    token1155.address, 
+                    token1155.id,
+                    await time.latestBlock(),
+                    1 // 1 == Protocol ERC1155
+                );
+            tx = await tx.wait();
 
+            // Approve the market to manage the offered tokens.
+            tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+                marketV2.address,
+                true
+            );
+
+            // Activated the offer in the market V2
+            tx = await marketV2.connect(ownerToken1155).activateOffer(0);
+            tx = await tx.wait();
+
+            // Getting the creator ETH balance before selling the offer
+            const balanceETHBeforeSelled = await ownerToken1155.getBalance();
+
+            // Buy the offer with Version 2. (offerId: 1, method: 0 == EHT)
+            await expect(tx = await marketV2.connect(account1).buyTokenOffer(0, 0, {value: ethers.utils.parseEther("1")}))
+                .to.emit(marketV2, 'OfferSold')
+                .withArgs(
+                    0, 
+                    await account1.getAddress(), 
+                    token1155.address, 
+                    token1155.id, 
+                    await time.latestBlock()
+                );
+            tx = await tx.wait();
+
+            expect(20).to.equal(await Itoken1155.balanceOf(await account1.getAddress(), token1155.id));
+            expect(10).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
+            expect(await ownerToken1155.getBalance()).to.be.above(balanceETHBeforeSelled);
         });
+
         it("Must create an offer of the ERC721 and buy with Ether", async ()=>{
+            // Create offer in Market V2
+            await expect(tx = await marketV2.connect(ownerToken721).createOffer(
+                token721.address,
+                token721.id1, 
+                1,  // 1 because it is 721 (but this does not matter, the market is counting on that, so you can put any number)
+                (time.duration.hours(1)).toNumber(),
+                150,
+                0  // Type token 0 == Protocol ERC721
+                )
+            )
+                .to.emit(marketV2, 'OfferCreated')
+                .withArgs(
+                    1, 
+                    await ownerToken721.getAddress(),
+                    token721.address, 
+                    token721.id1,
+                    await time.latestBlock(),
+                    0 // Type token 0 == Protocol ERC721
+                );
+            tx = await tx.wait();
 
+            // Approve the market to manage tokens of the creator.
+            tx = await Itoken721.connect(ownerToken721).approve(
+                marketV2.address,
+                token721.id1
+            );
+            tx = await tx.wait();
+
+            // Activated the offer in the market V2
+            tx = await marketV2.connect(ownerToken721).activateOffer(1);
+            tx = await tx.wait();
+
+            // Getting the creator ETH balance before selling the offer
+            const balanceETHBeforeSelled = await ownerToken721.getBalance();
+
+            // Buy the offer with Version 2. (offerId: 1, method: 0 == EHT)
+            tx = await marketV2.connect(account1).buyTokenOffer(1, 0, {value: ethers.utils.parseEther("1")});
+            tx = await tx.wait();
+
+            expect(await account1.getAddress()).to.equal(await Itoken721.ownerOf(token721.id1));
+            expect(1).to.equal(await Itoken721.balanceOf(await account1.getAddress()));
+            expect(await ownerToken721.getBalance()).to.be.above(balanceETHBeforeSelled);
         });
 
-        it("Must allow add a new payment method (USDT)", async ()=>{
+        it("Must allow add a new payment method (UNI)", async ()=>{
             let tx;
-            await expect (tx = await marketV2.connect(ownerMarket).addPaymentMethod(USDT_AGGREGATOR, USDT_ADDRESS))
+            await expect (tx = await marketV2.connect(ownerMarket).addPaymentMethod(UNI_AGGREGATOR, UNI_ADDRESS))
                 .to.emit(marketV2, 'NewPaymentMethod')
-                .withArgs(3, USDT_AGGREGATOR, USDT_ADDRESS);
+                .withArgs(3, UNI_AGGREGATOR, UNI_ADDRESS);
             tx = tx.wait();
         });
 
-        it("Must create an offer of the ERC1155 and buy with USDT", async ()=>{
+        it("Must create an offer of the ERC1155 and buy with UNI", async ()=>{
+            // Create offer in Market V2
+            await expect(tx = await marketV2.connect(ownerToken1155).createOffer(
+                token1155.address,
+                token1155.id,
+                10,
+                (time.duration.hours(1)).toNumber(),
+                100,
+                1 // Type token 1 == Protocol ERC1155
+                )
+            )
+                .to.emit(marketV2, 'OfferCreated')
+                .withArgs(
+                    2, 
+                    await ownerToken1155.getAddress(),
+                    token1155.address, 
+                    token1155.id,
+                    await time.latestBlock(),
+                    1 // 1 == Protocol ERC1155
+                );
+            tx = await tx.wait();
 
+            // Approve the market to manage the offered tokens.
+            tx = await Itoken1155.connect(ownerToken1155).setApprovalForAll(
+                marketV2.address,
+                true
+            );
+
+            // Activated the offer in the market V2
+            tx = await marketV2.connect(ownerToken1155).activateOffer(2);
+            tx = await tx.wait();
+
+            // Getting the creator UNI balance before selling the offer
+            const balanceUNIBeforeSelled = await ItokenUNI.balanceOf(await ownerToken1155.getAddress());
+
+            // Getting the aprox token amount to reach the price of offer 2 with method 3 (UNI)
+            let amountAproxToken = await marketV2.getPrice(2, 3);
+
+            // Setting an margin of 2% to the price
+            amountAproxToken = (amountAproxToken.mul(102)).div(100);
+
+            // Approve the market to manage the ERC20 tokens ()
+            tx = await ItokenUNI.connect(buyerUNI).approve(marketV2.address, amountAproxToken);
+            tx = await tx.wait();
+
+            // Buy the offer with Version 2. (offerId: 2, method: 3 == UNI)
+            await expect(tx = await marketV2.connect(buyerUNI).buyTokenOffer(2, 3))
+                .to.emit(marketV2, 'OfferSold')
+                .withArgs(
+                    2, 
+                    await buyerUNI.getAddress(), 
+                    token1155.address, 
+                    token1155.id, 
+                    await time.latestBlock()
+                );
+            tx = await tx.wait();
+
+            expect(10).to.equal(await Itoken1155.balanceOf(await buyerUNI.getAddress(), token1155.id));
+            expect(0).to.equal(await Itoken1155.balanceOf(await ownerToken1155.getAddress(), token1155.id));
+            expect(await ItokenUNI.balanceOf(await ownerToken1155.getAddress())).to.be.above(balanceUNIBeforeSelled);
         });
-        it("Must create an offer of the ERC721 and buy with USDT", async ()=>{
+
+        it("Must create an offer of the ERC721 and buy with UNI", async ()=>{
 
         });
     });
