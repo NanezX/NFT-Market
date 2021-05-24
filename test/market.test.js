@@ -17,7 +17,7 @@ const token1155={
     id: "65678"
 }
 
-let FactoryContract, market, Itoken1155, ItokenDAI;
+let FactoryContract, market, Itoken1155, ItokenDAI, ItokenLINK;
 let ownerMarket, recipient, account1, ownerToken1155, buyerDAI, buyerLINK;
 
 before(async ()=>{
@@ -189,7 +189,7 @@ describe("Market NFT - Trades", ()=>{
         market = await upgrades.deployProxy(FactoryContract.connect(ownerMarket), [recipient.address, 100]);
     });
 
-    it("Must buy with the offer with Ether", async ()=>{
+    it("Must buy the offer with Ether", async ()=>{
         // Create offer into the market
         let tx = await market.connect(ownerToken1155).createOffer(
             token1155.address,
@@ -231,7 +231,7 @@ describe("Market NFT - Trades", ()=>{
         expect(await ownerToken1155.getBalance()).to.be.above(balanceETHBeforeSelled);
     });
 
-    it("Must buy with the offer with Ether DAI Token", async ()=>{
+    it("Must buy the offer with DAI Token", async ()=>{
         // Create offer into the market
         let tx = await market.connect(ownerToken1155).createOffer(
             token1155.address,
@@ -504,6 +504,18 @@ describe("Market NFT - Requirements management of the offers", ()=>{
             // Trying to cancel again the offer in the market
             await expect(market.connect(ownerToken1155).cancelOffer(0))
             .to.be.revertedWith("The offer is already canceled or sold");
+        });
+    });
+
+    after(async ()=>{
+        await hre.network.provider.request({
+            method: "hardhat_reset",
+            params: [{
+                forking: {
+                jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
+                blockNumber: 12481130
+                }
+            }]
         });
     });
 });
